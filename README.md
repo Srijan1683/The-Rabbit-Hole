@@ -57,11 +57,23 @@ rabbit-hole/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                  # FastAPI app, startup, shutdown
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py            # Environment variables, model names, API settings
+│   │   ├── logging.py           # App logging configuration
+│   │   └── errors.py            # Shared exceptions and error helpers
 │   ├── agent/
 │   │   ├── __init__.py
-│   │   ├── agent.py             # OpenAI Agents SDK setup, system prompt, tool registration
+│   │   ├── agent.py             # OpenAI Agents SDK setup and agent definition
+│   │   ├── prompts.py           # System prompt and agent instructions
+│   │   ├── registry.py          # Tool registration for the agent
 │   │   ├── token_manager.py     # Token budget calculator, history truncation
 │   │   └── rate_limiter.py      # Rate limit tracking, backoff strategies
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── exploration.py       # Main explore workflow: memory → agent → persistence
+│   │   ├── streaming.py         # SSE event formatting and stream lifecycle
+│   │   └── memory.py            # Session context loading and summarization decisions
 │   ├── tools/
 │   │   ├── __init__.py
 │   │   ├── wikipedia.py         # Wikipedia API wrapper
@@ -79,14 +91,19 @@ rabbit-hole/
 │   │   ├── __init__.py
 │   │   ├── session.py           # Session Pydantic models
 │   │   ├── conversation.py      # Message, ExploreRequest, ExploreResponse models
+│   │   ├── tool.py              # Tool input/output and source metadata models
 │   │   └── token.py             # TokenBudget, RateLimitStatus models
 │   └── routes/
 │       ├── __init__.py
-│       ├── sessions.py          # Session endpoints
-│       ├── explore.py           # Main explore endpoint + SSE stream
-│       └── admin.py             # Rate limit status endpoint
+│       ├── sessions.py          # Session and history endpoints
+│       ├── explore.py           # Main explore endpoint and stream endpoint
+│       └── admin.py             # Rate limit and diagnostics endpoints
+├── docker/
+│   └── postgres/
+│       └── init.sql             # Optional Postgres init script for local Docker setup
 ├── migrations/
 │   └── 001_initial_schema.sql   # Full database schema
+├── docker-compose.yml           # Local Postgres service for development
 ├── .env                         # Environment variables (never commit)
 ├── .env.example                 # Template for environment variables
 ├── .gitignore

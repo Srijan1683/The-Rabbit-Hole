@@ -98,9 +98,6 @@ rabbit-hole/
 │       ├── sessions.py          # Session and history endpoints
 │       ├── explore.py           # Main explore endpoint and stream endpoint
 │       └── admin.py             # Rate limit and diagnostics endpoints
-├── docker/
-│   └── postgres/
-│       └── init.sql             # Optional Postgres init script for local Docker setup
 ├── migrations/
 │   └── 001_initial_schema.sql   # Full database schema
 ├── docker-compose.yml           # Local Postgres service for development
@@ -206,24 +203,34 @@ pip install -r requirements.txt
 ### 2. Set up Postgres
 
 ```bash
-# Using Docker
-docker run --name rabbithole-db -e POSTGRES_PASSWORD=password -e POSTGRES_DB=rabbithole -p 5432:5432 -d postgres
+docker compose up -d
 ```
 
-### 3. Run migrations
+The migration in `migrations/001_initial_schema.sql` runs automatically the first time the Docker database is created.
+
+Useful Docker commands:
 
 ```bash
-psql -U postgres -d rabbithole -f migrations/001_initial_schema.sql
+docker compose ps
+docker compose logs -f db
+docker exec -it rabbithole-db psql -U postgres -d rabbithole
+docker compose down
 ```
 
-### 4. Configure environment
+Inside `psql`, list tables with:
+
+```sql
+\dt
+```
+
+### 3. Configure environment
 
 ```bash
 cp .env.example .env
 # Fill in your API keys
 ```
 
-### 5. Run the server
+### 4. Run the server
 
 ```bash
 uvicorn app.main:app --reload

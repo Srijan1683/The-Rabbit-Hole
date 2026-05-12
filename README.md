@@ -101,8 +101,7 @@ rabbit-hole/
 ├── migrations/
 │   └── 001_initial_schema.sql   # Full database schema
 ├── docker-compose.yml           # Local Postgres service for development
-├── .env                         # Environment variables (never commit)
-├── .env.example                 # Template for environment variables
+├── .env.example                 # Environment variable template
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -169,31 +168,12 @@ When streaming, the client receives real-time events as the agent works:
 
 ---
 
-## Environment Variables
-
-```env
-# OpenAI
-OPENAI_API_KEY=
-
-# Postgres
-DATABASE_URL=postgresql://user:password@localhost:5432/rabbithole
-
-# Podcast Index (requires both)
-PODCAST_INDEX_API_KEY=
-PODCAST_INDEX_API_SECRET=
-
-# YouTube
-YOUTUBE_API_KEY=
-```
-
----
-
 ## Setup
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/yourusername/rabbit-hole.git
+git clone https://github.com/Srijan1683/rabbit-hole.git
 cd rabbit-hole
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -229,6 +209,8 @@ Inside `psql`, list tables with:
 cp .env.example .env
 # Fill in your API keys
 ```
+
+Environment variables are documented in `.env.example`. The local `.env` file is ignored by Git and should never be committed.
 
 ### 4. Run the server
 

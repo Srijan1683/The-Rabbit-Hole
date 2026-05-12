@@ -168,58 +168,6 @@ When streaming, the client receives real-time events as the agent works:
 
 ---
 
-## Setup
-
-### 1. Clone and install
-
-```bash
-git clone https://github.com/Srijan1683/rabbit-hole.git
-cd rabbit-hole
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 2. Set up Postgres
-
-```bash
-docker compose up -d
-```
-
-The migration in `migrations/001_initial_schema.sql` runs automatically the first time the Docker database is created.
-
-Useful Docker commands:
-
-```bash
-docker compose ps
-docker compose logs -f db
-docker exec -it rabbithole-db psql -U postgres -d rabbithole
-docker compose down
-```
-
-Inside `psql`, list tables with:
-
-```sql
-\dt
-```
-
-### 3. Configure environment
-
-```bash
-cp .env.example .env
-# Fill in your API keys
-```
-
-Environment variables are documented in `.env.example`. The local `.env` file is ignored by Git and should never be committed.
-
-### 4. Run the server
-
-```bash
-uvicorn app.main:app --reload
-```
-
----
-
 ## Implementation Phases
 
 ### Phase 1 — Postgres + Session Management

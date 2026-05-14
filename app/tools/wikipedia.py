@@ -4,6 +4,12 @@ import httpx
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
 from app.models.tool import Source, ToolResult
 
+WIKIPEDIA_HEADERS = {
+    "User-Agent": "TheRabbitHole/0.1 (https://github.com/Srijan1683/The-Rabbit-Hole)",
+    "Api-User-Agent": "TheRabbitHole/0.1 (https://github.com/Srijan1683/The-Rabbit-Hole)",
+}
+
+
 async def get_wikipedia_summary(query: str) -> ToolResult:
     cache_key = make_cache_key(
         api_name="wikipedia",
@@ -31,7 +37,7 @@ async def get_wikipedia_summary(query: str) -> ToolResult:
 
     url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{query}"
 
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=10, headers=WIKIPEDIA_HEADERS) as client:
         response = await client.get(url)
         response.raise_for_status()
         data = response.json()
@@ -107,7 +113,7 @@ async def search_wikipedia(query: str, limit: int = 5) -> ToolResult:
         "srlimit": limit,
     }
     
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=10, headers=WIKIPEDIA_HEADERS) as client:
         response = await client.get(url, params=params)
         response.raise_for_status()
         data = response.json()

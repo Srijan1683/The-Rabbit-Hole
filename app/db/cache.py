@@ -32,7 +32,14 @@ async def get_cached_response(cache_key: str) -> dict[str, Any] | None:
         AND expires_at > NOW()""",
         cache_key
     )
-    return row["response_data"] if row else None
+    if not row:
+        return None
+
+    response_data = row["response_data"]
+    if isinstance(response_data, str):
+        return json.loads(response_data)
+
+    return response_data
 
 
 async def save_cached_response(
@@ -55,7 +62,7 @@ async def save_cached_response(
         cache_key,
         api_name,
         query,
-        response_data,
+        json.dumps(response_data),
         expires_at,
     )
     

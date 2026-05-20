@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query
 
 from app.db.sessions import create_session, delete_session, get_session, list_sessions
-from app.db.history import get_history
+from app.db.history import get_history, get_tool_calls_for_session
 from app.models.session import Session, SessionCreate, SessionList
 from app.models.conversation import Message
 
@@ -50,3 +50,12 @@ async def get_session_history(
         raise HTTPException(status_code=404, detail="Session not found")
     
     return await get_history(session_id=session_id, limit=limit)
+
+@router.get("/{session_id}/tool-calls")
+async def get_session_tool_calls(session_id: uuid.UUID):
+    session = await get_session(session_id)
+    
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return await get_tool_calls_for_session(session_id=session_id)

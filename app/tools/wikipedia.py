@@ -39,6 +39,8 @@ async def get_wikipedia_summary(query: str) -> ToolResult:
 
     async with httpx.AsyncClient(timeout=10, headers=WIKIPEDIA_HEADERS) as client:
         response = await client.get(url)
+        if response.status_code == 404:
+            return await search_wikipedia(query=query, limit=3)
         response.raise_for_status()
         data = response.json()
 

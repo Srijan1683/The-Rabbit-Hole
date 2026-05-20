@@ -71,7 +71,7 @@ def format_tool_results(tool_results: list[ToolResult]) -> str:
             
     return "\n".join(sections)
     
-async def run_agent(query: str, context: str | None = None) -> str:
+async def run_agent(query: str, context: str | None = None) -> tuple[str, list[ToolResult]]:
     client = get_openai_client()
     
     tool_names = choose_tools_for_query(query)
@@ -110,4 +110,5 @@ async def run_agent(query: str, context: str | None = None) -> str:
         messages=messages,
     )
     
-    return response.choices[0].message.content or ""
+    response_text = response.choices[0].message.content or ""
+    return response_text, tool_results

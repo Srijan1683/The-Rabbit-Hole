@@ -1,10 +1,10 @@
-from typing import Literal
 from enum import Enum
 
 from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
 from app.models.token import TokenBudget
+from app.models.tool import Source
 
 
 class MessageRole(str, Enum):
@@ -29,12 +29,6 @@ class ToolCallRecord(BaseModel):
     output_summary: str
     duration_ms: int
     cached: bool
-
-class Source(BaseModel):
-    title: str
-    url: str
-    source_type: Literal["wikipedia", "book", "paper", "podcast", "video"]
-    relevance: str
 
 class ExploreResponse(BaseModel):
     session_id: UUID

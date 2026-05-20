@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from app.db.pool import close_pool, create_pool
 from app.routes.sessions import router as sessions_router
 from app.routes.explore import router as explore_router
+from app.routes.admin import router as admin_router
 
 
 @asynccontextmanager
@@ -17,3 +18,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="The Rabbit Hole", lifespan=lifespan)
 app.include_router(sessions_router)
 app.include_router(explore_router)
+app.include_router(admin_router)

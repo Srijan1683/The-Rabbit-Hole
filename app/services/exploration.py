@@ -5,8 +5,9 @@ from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.token_manager import build_token_budget, get_context_window
 from app.core.config import settings
 from app.db.sessions import create_session, get_session
-from app.models.conversation import ExploreResponse, MessageRole
+from app.models.conversation import ExploreResponse, MessageRole, ToolCallRecord
 from app.services.memory import count_tokens, load_session_history, store_message
+from app.models.tool import ToolResult, Source
 
 def build_history_context(history: list[dict]) -> str:
     if not history:
@@ -21,6 +22,29 @@ def build_history_context(history: list[dict]) -> str:
         
     return "\n".join(lines)
 
+def collect_sources(tool_results: list[ToolResult]) -> list[Source]:
+    sources = []
+    
+    for result in tool_results:
+        sources.extend(result.sources)
+        
+    return sources
+
+def build_tool_call_records(tool_results: list[ToolResult]) -> list[ToolCallRecord]:
+    records = []
+    
+    for result in tool_results:
+        records.append(
+            ToolCallRecord(
+                tool_name=result.tool_name,
+                input_args={},
+                output_summary=result.summary or "",
+                duration_ms=0,
+                cached=result.cached,
+            )
+        )
+        
+    return records
 
 async def explore_topic(
     query: str,
@@ -46,7 +70,7 @@ async def explore_topic(
         content=query,
     )
     
-    response_text = await run_agent(query=query, context=context)
+    response_text, tool_results = await run_agent(query=query, context=context)
     
     await store_message(
         session_id=session_id,
@@ -69,10 +93,13 @@ async def explore_topic(
         history_messages_truncated=0,
     )
     
+    sources = collect_sources(tool_results)
+    tool_calls = build_tool_call_records(tool_results)
+    
     return ExploreResponse(
         session_id=session_id,
         response=response_text,
-        sources=[],
-        tool_calls=[],
+        sources=sources,
+        tool_calls=tool_calls,
         token_usage=token_usage,
     )

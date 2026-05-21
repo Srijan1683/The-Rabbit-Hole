@@ -5,6 +5,7 @@ from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.token_manager import build_token_budget, get_context_window
 from app.core.config import settings
 from app.db.sessions import create_session, get_session
+from app.db.history import save_tool_call
 from app.models.conversation import ExploreResponse, MessageRole, ToolCallRecord
 from app.services.memory import count_tokens, load_session_history, store_message
 from app.models.tool import ToolResult, Source
@@ -30,14 +31,14 @@ def collect_sources(tool_results: list[ToolResult]) -> list[Source]:
         
     return sources
 
-def build_tool_call_records(tool_results: list[ToolResult]) -> list[ToolCallRecord]:
+def build_tool_call_records(query: str, tool_results: list[ToolResult]) -> list[ToolCallRecord]:
     records = []
     
     for result in tool_results:
         records.append(
             ToolCallRecord(
                 tool_name=result.tool_name,
-                input_args={},
+                input_args={"query": query},
                 output_summary=result.summary or "",
                 duration_ms=0,
                 cached=result.cached,
@@ -45,6 +46,21 @@ def build_tool_call_records(tool_results: list[ToolResult]) -> list[ToolCallReco
         )
         
     return records
+
+async def save_tool_results(
+    session_id: uuid.UUID,
+    query: str,
+    tool_results: list[ToolResult],
+) -> None:
+    for result in tool_results:
+        await save_tool_call(
+            session_id=session_id,
+            tool_name=result.tool_name,
+            input_args={"query": query},
+            output_summary=result.summary,
+            duration_ms=0,
+            cached=result.cached,
+        )
 
 async def explore_topic(
     query: str,
@@ -72,6 +88,12 @@ async def explore_topic(
     
     response_text, tool_results = await run_agent(query=query, context=context)
     
+    await save_tool_results(
+        session_id=session_id,
+        query=query,
+        tool_results=tool_results,
+    )
+    
     await store_message(
         session_id=session_id,
         role=MessageRole.ASSISTANT,
@@ -94,7 +116,7 @@ async def explore_topic(
     )
     
     sources = collect_sources(tool_results)
-    tool_calls = build_tool_call_records(tool_results)
+    tool_calls = build_tool_call_records(query, tool_results)
     
     return ExploreResponse(
         session_id=session_id,

@@ -3,6 +3,7 @@ from .pool import get_pool
 import uuid
 from app.models.conversation import MessageRole
 from typing import Any
+from datetime import datetime
 
 def _get_pool():
     pool = get_pool()
@@ -79,3 +80,26 @@ async def get_tool_calls_for_session(session_id: uuid.UUID):
         session_id,
     )
     return [dict(row) for row in rows]
+
+async def save_api_usage(
+    api_name: str,
+    endpoint: str,
+    status_code: int,
+    response_time_ms: int | None = None,
+    rate_limit_remaining: int | None = None,
+    rate_limit_reset_at: datetime | None = None,
+):
+    pool = _get_pool()
+    row = await pool.fetchrow(
+        """INSERT INTO api_usage
+        (api_name, endpoint, status_code, response_time_ms, rate_limit_remaining, rate_limit_reset_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *""",
+        api_name,
+        endpoint,
+        status_code,
+        response_time_ms,
+        rate_limit_remaining,
+        rate_limit_reset_at,
+    )
+    return dict(row)

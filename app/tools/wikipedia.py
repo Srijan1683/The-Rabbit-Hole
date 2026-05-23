@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import httpx
+import re
 
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
 from app.models.tool import Source, ToolResult
@@ -9,6 +10,11 @@ WIKIPEDIA_HEADERS = {
     "Api-User-Agent": "TheRabbitHole/0.1 (https://github.com/Srijan1683/The-Rabbit-Hole)",
 }
 
+def _clean_html(text: str | None) -> str | None:
+    if text is None:
+        return None
+    
+    return re.sub(r"<[^>]+>", "", text)
 
 async def get_wikipedia_summary(query: str) -> ToolResult:
     cache_key = make_cache_key(
@@ -130,7 +136,7 @@ async def search_wikipedia(query: str, limit: int = 5) -> ToolResult:
             {
                 "pageid": page_id,
                 "title": title,
-                "snippet": item.get("snippet"),
+                "snippet": _clean_html(item.get("snippet")),
                 "url": f"https://en.wikipedia.org/?curid={page_id}",
             }
         )

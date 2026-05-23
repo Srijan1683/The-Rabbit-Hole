@@ -66,12 +66,14 @@ async def run_research_tools(query: str, tool_names: list[str]) -> list[ToolResu
     return results
 
 def format_tool_results(tool_results: list[ToolResult]) -> str:
-    if not tool_results:
+    useful_results = [result for result in tool_results if result.sources]
+    
+    if not useful_results:
         return ""
     
     sections = ["External research results:"]
     
-    for result in tool_results:
+    for result in useful_results:
         sections.append(f"\nTool: {result.tool_name}")
         
         if result.summary:

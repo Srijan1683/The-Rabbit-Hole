@@ -2,9 +2,11 @@ from datetime import datetime, timedelta, timezone
 import xml.etree.ElementTree as ET
 
 import httpx
+import time
 
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
 from app.models.tool import Source, ToolResult
+from app.db.history import save_api_usage
 
 ARXIV_SEARCH_URL = "https://export.arxiv.org/api/query"
 
@@ -52,7 +54,17 @@ async def search_papers(query: str, limit: int = 5) -> ToolResult:
     }
     
     async with httpx.AsyncClient(timeout=10, headers=ARXIV_HEADERS) as client:
+        started_at = time.perf_counter()
         response = await client.get(ARXIV_SEARCH_URL, params=params)
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        
+        await save_api_usage(
+            api_name="arxiv",
+            endpoint=str(response.url),
+            status_code=response.status_code,
+            response_time_ms=duration_ms,
+        )
+        
         response.raise_for_status()
         
     root = ET.fromstring(response.text)

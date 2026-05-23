@@ -4,6 +4,8 @@ import re
 
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
 from app.models.tool import Source, ToolResult
+from app.db.history import save_api_usage
+import time
 
 WIKIPEDIA_HEADERS = {
     "User-Agent": "TheRabbitHole/0.1 (https://github.com/Srijan1683/The-Rabbit-Hole)",
@@ -44,9 +46,20 @@ async def get_wikipedia_summary(query: str) -> ToolResult:
     url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{query}"
 
     async with httpx.AsyncClient(timeout=10, headers=WIKIPEDIA_HEADERS) as client:
+        started_at = time.perf_counter()
         response = await client.get(url)
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        
+        await save_api_usage(
+            api_name="wikipedia",
+            endpoint=str(response.url),
+            status_code=response.status_code,
+            response_time_ms=duration_ms,
+        )
+        
         if response.status_code == 404:
             return await search_wikipedia(query=query, limit=3)
+        
         response.raise_for_status()
         data = response.json()
 
@@ -122,7 +135,17 @@ async def search_wikipedia(query: str, limit: int = 5) -> ToolResult:
     }
     
     async with httpx.AsyncClient(timeout=10, headers=WIKIPEDIA_HEADERS) as client:
+        started_at = time.perf_counter()
         response = await client.get(url, params=params)
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        
+        await save_api_usage(
+            api_name="wikipedia",
+            endpoint=str(response.url),
+            status_code=response.status_code,
+            response_time_ms=duration_ms,
+        )
+        
         response.raise_for_status()
         data = response.json()
         

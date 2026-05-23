@@ -6,7 +6,7 @@ from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.rate_limiter import is_rate_limited, mark_rate_limited
 from app.agent.registry import get_tool
 from app.models.tool import ToolResult
-
+from app.core.logging import get_logger
 
 TOOL_API_NAMES = {
     "wikipedia_summary": "wikipedia",
@@ -17,6 +17,7 @@ TOOL_API_NAMES = {
     "podcast_search": "podcast_index",
 }
 
+logger = get_logger(__name__)
 
 def get_openai_client() -> AsyncOpenAI:
     return AsyncOpenAI(
@@ -48,7 +49,7 @@ async def run_research_tools(query: str, tool_names: list[str]) -> list[ToolResu
     for tool_name in tool_names:
         api_name = TOOL_API_NAMES.get(tool_name, tool_name)
         if is_rate_limited(api_name):
-            print(f"Skipping {tool_name}: {api_name} is rate-limited")
+            logger.info("Skipping %s: %s is rate-limited", tool_name, api_name)
             continue
 
         tool = get_tool(tool_name)
@@ -58,9 +59,9 @@ async def run_research_tools(query: str, tool_names: list[str]) -> list[ToolResu
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429:
                 mark_rate_limited(api_name)
-            print(f"Tool {tool_name} failed: {exc}")
+            logger.warning("Tool %s failed: %s", tool_name, exc)
         except Exception as exc:
-            print(f"Tool {tool_name} failed: {exc}")
+            logger.exception("Tool %s failed unexpectedly", tool_name)
         
     return results
 

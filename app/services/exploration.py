@@ -4,6 +4,7 @@ from app.agent.agent import run_agent
 from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.token_manager import build_token_budget, get_context_window
 from app.core.config import settings
+from app.core.errors import NotFoundError
 from app.db.sessions import create_session, get_session
 from app.db.history import save_tool_call
 from app.models.conversation import ExploreResponse, MessageRole, ToolCallRecord
@@ -75,7 +76,7 @@ async def explore_topic(
         session = await get_session(session_id)
         
         if session is None:
-            raise ValueError("Session not found")
+            raise NotFoundError("Session not found")
         
     history = await load_session_history(session_id=session_id)
     context = build_history_context(history)

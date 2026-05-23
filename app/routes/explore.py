@@ -6,6 +6,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.models.conversation import ExploreRequest, ExploreResponse
 from app.services.exploration import explore_topic
 from app.services.streaming import stream_exploration
+from app.core.errors import NotFoundError
 
 router = APIRouter(tags=["explore"])
 
@@ -16,7 +17,7 @@ async def explore(payload: ExploreRequest):
             query=payload.query,
             session_id=payload.session_id,
         )
-    except ValueError as exc:
+    except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 @router.get("/explore/stream")

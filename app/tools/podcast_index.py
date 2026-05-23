@@ -7,6 +7,7 @@ import httpx
 from app.core.config import settings
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
 from app.models.tool import Source, ToolResult
+from app.db.history import save_api_usage
 
 
 PODCAST_INDEX_SEARCH_URL = "https://api.podcastindex.org/api/1.0/search/byterm"
@@ -72,7 +73,17 @@ async def search_podcasts(query: str, limit: int = 5) -> ToolResult:
     }
 
     async with httpx.AsyncClient(timeout=10, headers=_build_auth_headers()) as client:
+        started_at = time.perf_counter()
         response = await client.get(PODCAST_INDEX_SEARCH_URL, params=params)
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        
+        await save_api_usage(
+            api_name="podcast_index",
+            endpoint=str(response.url),
+            status_code=response.status_code,
+            response_time_ms=duration_ms,
+        )
+        
         response.raise_for_status()
         data = response.json()
 

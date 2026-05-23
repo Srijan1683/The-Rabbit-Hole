@@ -6,7 +6,9 @@ from app.db.pool import close_pool, create_pool
 from app.routes.sessions import router as sessions_router
 from app.routes.explore import router as explore_router
 from app.routes.admin import router as admin_router
+from app.core.logging import setup_logging
 
+setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

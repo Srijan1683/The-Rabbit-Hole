@@ -65,19 +65,33 @@ def select_history_for_context(
     available_tokens: int,
     model: str | None = None,
 ) -> list[dict[str, Any]]:
+    if not messages or available_tokens <= 0:
+        return []
+    
+    first_message = messages[0]
+    remaining_messages = messages[1:]
+    
     selected: list[dict[str, Any]] = []
     used_tokens = 0
     
-    for message in reversed(messages):
+    first_message_tokens = count_message_tokens(first_message, model=model)
+    
+    if first_message_tokens <= available_tokens:
+        selected.append(first_message)
+        used_tokens += first_message_tokens
+    
+    recent_selected: list[dict[str, Any]] = []
+    
+    for message in reversed(remaining_messages):
         message_tokens = count_message_tokens(message, model=model)
         
         if used_tokens + message_tokens > available_tokens:
             break
         
-        selected.append(message)
+        recent_selected.append(message)
         used_tokens += message_tokens
         
-    return list(reversed(selected))
+    return selected + list(reversed(recent_selected))
 
 
 def truncate_text_to_tokens(

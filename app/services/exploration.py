@@ -2,7 +2,12 @@ import uuid
 
 from app.agent.agent import run_agent
 from app.agent.prompts import SYSTEM_PROMPT
-from app.agent.token_manager import build_token_budget, get_context_window
+from app.agent.token_manager import (
+    build_token_budget, 
+    count_messages_tokens,
+    get_context_window,
+    select_history_for_context,
+)
 from app.core.config import settings
 from app.core.errors import NotFoundError
 from app.db.sessions import create_session, get_session
@@ -79,14 +84,37 @@ async def explore_topic(
             raise NotFoundError("Session not found")
         
     history = await load_session_history(session_id=session_id)
-    context = build_history_context(history)
-    
+
+    system_prompt_tokens = count_tokens(SYSTEM_PROMPT)
+    current_query_tokens = count_tokens(query)
+    context_window = get_context_window(settings.openai_model)
+
+    response_reserve = 4096
+    tool_output_reserve = 12000
+
+    available_history_tokens = max(
+        context_window
+        - system_prompt_tokens
+        - current_query_tokens
+        - response_reserve
+        - tool_output_reserve,
+        0,
+    )
+
+    selected_history = select_history_for_context(
+        messages=history,
+        available_tokens=available_history_tokens,
+        model=settings.openai_model,
+    )
+
+    context = build_history_context(selected_history)
+
     await store_message(
         session_id=session_id,
         role=MessageRole.USER,
         content=query,
     )
-    
+
     response_text, tool_results = await run_agent(query=query, context=context)
     
     await save_tool_results(
@@ -101,19 +129,20 @@ async def explore_topic(
         content=response_text,
     )
     
-    system_prompt_tokens = count_tokens(SYSTEM_PROMPT)
-    current_query_tokens = count_tokens(query)
-    history_tokens = count_tokens(context)
-    context_window = get_context_window(settings.openai_model)
-    
+    history_tokens = count_messages_tokens(
+        selected_history,
+        model=settings.openai_model,
+    )
+
     token_usage = build_token_budget(
         model=settings.openai_model,
         context_window=context_window,
         system_prompt_tokens=system_prompt_tokens,
         current_query_tokens=current_query_tokens,
         history_tokens=history_tokens,
-        history_messages_included=len(history),
-        history_messages_truncated=0,
+        response_reserve=response_reserve,
+        history_messages_included=len(selected_history),
+        history_messages_truncated=max(len(history) - len(selected_history), 0),
     )
     
     sources = collect_sources(tool_results)

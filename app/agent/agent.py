@@ -7,6 +7,7 @@ from app.agent.rate_limiter import is_rate_limited, mark_rate_limited
 from app.agent.registry import get_tool
 from app.models.tool import ToolResult
 from app.core.logging import get_logger
+from app.agent.token_manager import truncate_text_to_tokens
 
 TOOL_API_NAMES = {
     "wikipedia_summary": "wikipedia",
@@ -65,34 +66,46 @@ async def run_research_tools(query: str, tool_names: list[str]) -> list[ToolResu
         
     return results
 
-def format_tool_results(tool_results: list[ToolResult]) -> str:
+def format_tool_results(
+    tool_results: list[ToolResult],
+    max_tokens_per_tool: int = 1500,
+) -> str:
     useful_results = [result for result in tool_results if result.sources]
-    
+
     if not useful_results:
         return ""
-    
+
     sections = ["External research results:"]
-    
+
     for result in useful_results:
-        sections.append(f"\nTool: {result.tool_name}")
-        
+        tool_sections = [f"\nTool: {result.tool_name}"]
+
         if result.summary:
-            sections.append(f"Summary: {result.summary}")
-            
+            tool_sections.append(f"Summary: {result.summary}")
+
         for source in result.sources[:5]:
             source_text = f"- {source.title}"
-            
+
             if source.author:
                 source_text += f" by {source.author}"
-                
+
             if source.url:
                 source_text += f" ({source.url})"
-                
+
             if source.summary:
-                source_text += f"\n {source.summary}"
-                
-            sections.append(source_text)
-            
+                source_text += f"\n  {source.summary}"
+
+            tool_sections.append(source_text)
+
+        tool_text = "\n".join(tool_sections)
+        tool_text = truncate_text_to_tokens(
+            text=tool_text,
+            max_tokens=max_tokens_per_tool,
+            model=settings.openai_model,
+        )
+
+        sections.append(tool_text)
+
     return "\n".join(sections)
     
 async def run_agent(query: str, context: str | None = None) -> tuple[str, list[ToolResult]]:

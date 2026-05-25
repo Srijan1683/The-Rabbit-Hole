@@ -7,6 +7,7 @@ import time
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
 from app.models.tool import Source, ToolResult
 from app.db.history import save_api_usage
+from app.agent.rate_limiter import update_rate_limit_from_headers
 
 ARXIV_SEARCH_URL = "https://export.arxiv.org/api/query"
 
@@ -64,6 +65,8 @@ async def search_papers(query: str, limit: int = 5) -> ToolResult:
             status_code=response.status_code,
             response_time_ms=duration_ms,
         )
+        
+        update_rate_limit_from_headers("arxiv", response.headers)
         
         response.raise_for_status()
         

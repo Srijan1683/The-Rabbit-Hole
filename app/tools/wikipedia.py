@@ -5,6 +5,7 @@ import re
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
 from app.models.tool import Source, ToolResult
 from app.db.history import save_api_usage
+from app.agent.rate_limiter import update_rate_limit_from_headers
 import time
 
 WIKIPEDIA_HEADERS = {
@@ -56,6 +57,8 @@ async def get_wikipedia_summary(query: str) -> ToolResult:
             status_code=response.status_code,
             response_time_ms=duration_ms,
         )
+        
+        update_rate_limit_from_headers("wikipedia", response.headers)
         
         if response.status_code == 404:
             return await search_wikipedia(query=query, limit=3)
@@ -145,6 +148,8 @@ async def search_wikipedia(query: str, limit: int = 5) -> ToolResult:
             status_code=response.status_code,
             response_time_ms=duration_ms,
         )
+        
+        update_rate_limit_from_headers("wikipedia", response.headers)
         
         response.raise_for_status()
         data = response.json()

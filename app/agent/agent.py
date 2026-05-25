@@ -1,9 +1,17 @@
 import httpx
+import asyncio
 from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.agent.prompts import SYSTEM_PROMPT
-from app.agent.rate_limiter import is_rate_limited, mark_rate_limited
+
+from app.agent.rate_limiter import (
+    calculate_backoff_seconds,
+    is_rate_limited,
+    mark_api_success,
+    mark_rate_limited,
+)
+
 from app.agent.registry import get_tool
 from app.models.tool import ToolResult
 from app.core.logging import get_logger
@@ -49,20 +57,46 @@ async def run_research_tools(query: str, tool_names: list[str]) -> list[ToolResu
     
     for tool_name in tool_names:
         api_name = TOOL_API_NAMES.get(tool_name, tool_name)
+        
         if is_rate_limited(api_name):
             logger.info("Skipping %s: %s is rate-limited", tool_name, api_name)
             continue
 
         tool = get_tool(tool_name)
-        try:
-            result = await tool(query=query)
-            results.append(result)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 429:
-                mark_rate_limited(api_name)
-            logger.warning("Tool %s failed: %s", tool_name, exc)
-        except Exception as exc:
-            logger.exception("Tool %s failed unexpectedly", tool_name)
+        
+        for attempt in range(3):
+            try:
+                result = await tool(query=query)
+                mark_api_success(api_name)
+                results.append(result)
+                break
+            
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                
+                if status_code == 429:
+                    backoff_seconds = calculate_backoff_seconds(
+                        api_name=api_name,
+                        headers=exc.response.headers,
+                    )
+                    mark_rate_limited(api_name, cooldown_seconds=backoff_seconds)
+                    
+                    logger.warning(
+                        "Tool %s hit rate limit. Retrying in  %s seconds.",
+                        tool_name, 
+                        backoff_seconds,
+                    )
+                
+                    if attempt < 2:
+                        await asyncio.sleep(backoff_seconds)
+                        continue
+                    
+                logger.warning("Tool %s failed: %s", tool_name, exc)
+                break
+                
+            except Exception as exc:
+                logger.exception("Tool %s failed unexpectedly", tool_name)
+                break
         
     return results
 

@@ -1,5 +1,8 @@
-import httpx
 import asyncio
+import json
+import re
+
+import httpx
 from openai import AsyncOpenAI
 
 from app.core.config import settings
@@ -12,7 +15,7 @@ from app.agent.rate_limiter import (
     mark_rate_limited,
 )
 
-from app.agent.registry import get_tool
+from app.agent.registry import format_tool_catalog, get_tool, list_tool_specs
 from app.models.tool import ToolResult
 from app.core.logging import get_logger
 from app.agent.token_manager import truncate_text_to_tokens

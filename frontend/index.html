@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Rabbit Hole</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Sessions">
+        <div class="brand">
+          <div class="brand-mark">RH</div>
+          <div>
+            <h1>The Rabbit Hole</h1>
+            <p>Research agent</p>
+          </div>
+        </div>
+
+        <button class="new-session-button" id="newSessionButton" type="button">
+          New exploration
+        </button>
+
+        <div class="sidebar-section">
+          <div class="section-label">Sessions</div>
+          <div class="session-list" id="sessionList"></div>
+        </div>
+      </aside>
+
+      <section class="workspace" aria-label="Explorer">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">Live exploration</div>
+            <h2 id="sessionTitle">Untitled session</h2>
+          </div>
+          <div class="connection-pill" id="connectionStatus">Idle</div>
+        </header>
+
+        <section class="response-panel" id="responsePanel">
+          <div class="empty-state" id="emptyState">
+            <h3>Start with any topic.</h3>
+            <p>Ask for books, papers, videos, podcasts, or a deeper trail through connected ideas.</p>
+          </div>
+
+          <article class="answer" id="answer"></article>
+          <section class="sources" id="sources"></section>
+        </section>
+
+        <section class="activity-panel" aria-label="Tool activity">
+          <div class="section-label">Activity</div>
+          <div class="activity-list" id="activityList"></div>
+        </section>
+
+        <form class="composer" id="exploreForm">
+          <textarea
+            id="queryInput"
+            rows="2"
+            placeholder="Explore quantum entanglement, the history of jazz, Ada Lovelace..."
+            autocomplete="off"
+          ></textarea>
+          <button id="submitButton" type="submit">Explore</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

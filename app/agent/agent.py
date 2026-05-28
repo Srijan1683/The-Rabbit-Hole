@@ -21,12 +21,8 @@ from app.core.logging import get_logger
 from app.agent.token_manager import truncate_text_to_tokens
 
 TOOL_API_NAMES = {
-    "wikipedia_summary": "wikipedia",
-    "wikipedia_search": "wikipedia",
-    "open_library_search": "open_library",
-    "arxiv_search": "arxiv",
-    "youtube_search": "youtube",
-    "podcast_search": "podcast_index",
+    spec.name: spec.api_name
+    for spec in list_tool_specs()
 }
 
 logger = get_logger(__name__)
@@ -39,21 +35,156 @@ def get_openai_client() -> AsyncOpenAI:
 
 def choose_tools_for_query(query: str) -> list[str]:
     query_lower = query.lower()
-    tools = ["wikipedia_summary"]
+    selected = ["wikipedia_summary", "wikipedia_search"]
     
-    if any(word in query_lower for word in ["book", "read", "author", "novel", "biography"]):
-        tools.append("open_library_search")
+    for spec in list_tool_specs():
+        if spec.name in selected:
+            continue
         
-    if any(word in query_lower for word in ["research", "paper", "study", "science", "technical", "physics", "math", "ai", "quantum"]):
-        tools.append("arxiv_search")
+        if any(keyword in query_lower for keyword in spec.keywords):
+            selected.append(spec.name)
         
-    if any(word in query_lower for word in ["video", "watch", "youtube", "lecture", "documentary", "talk"]):
-        tools.append("youtube_search")
+    return selected
+
+
+def _extract_json_array(text: str) -> list[str]:
+    try:
+        parsed = json.loads(text)
         
-    if any(word in query_lower for word in ["podcast", "listen", "audio", "episode"]):
-        tools.append("podcast_search")
+        if isinstance(parsed, list):
+            return [str(item) for item in parsed]
         
-    return tools
+    except json.JSONDecodeError:
+        pass
+    
+    match = re.search(r"\[[\s\S]*\]", text)
+    
+    if not match:
+        return []
+    
+    try:
+        parsed = json.loads(match.group(0))
+        
+        if isinstance(parsed, list):
+            return [str(item) for item in parsed]
+        
+    except json.JSONDecodeError:
+        return []
+    
+    return []
+
+
+async def choose_tools_with_model(query: str, context: str | None = None) -> list[str]:
+    client = get_openai_client()
+    tool_catalog = format_tool_catalog()
+    allowed_tools = set(TOOL_API_NAMES)
+    
+    prompt = f"""
+Choose the best tools for this user query.
+
+User query:
+{query}
+
+Conversation context:
+{context or "No previous context."}
+
+Available tools:
+{tool_catalog}
+
+Rules:
+- Always include wikipedia_summary for general grounding.
+- Include wikipedia_search when connected concepts or related entities may help.
+- Include open_library_search only when books/authors/reading would help.
+- Include arxiv_search only for scientific, technical, mathematical, or research-heavy topics.
+- Include youtube_search only when videos, lectures, talks, interviews, documentaries, or visual learning would help.
+- Include podcast_search only when podcasts/audio/listening would help.
+- Do not include every tool automatically.
+- Return only a JSON array of tool names. No explanation.
+
+Example:
+["wikipedia_summary", "arxiv_search"]
+"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": "You choose tools for research agent. Return only valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
+        
+        content = response.choices[0].message.content or ""
+        chosen_tools = _extract_json_array(content)
+        
+        valid_tools = [
+            tool_name
+            for tool_name in chosen_tools
+            if tool_name in allowed_tools
+        ]
+        
+        if valid_tools:
+            if "wikipedia_summary" not in valid_tools:
+                valid_tools.insert(0, "wikipedia_summary")
+                
+            return list(dict.fromkeys(valid_tools))
+        
+    except Exception:
+        logger.exception("Model tool selection failed. Falling back to keyword selection.")
+        
+    return choose_tools_for_query(query)
+
+
+async def choose_follow_up_query(
+    original_query: str,
+    tool_results: list[ToolResult],
+) -> str | None:
+    tool_context = format_tool_results(tool_results, max_tokens_per_tool=700)
+    
+    if not tool_context:
+        return None
+    
+    client = get_openai_client()
+    
+    prompt = f"""
+The user is exploring this topic:
+{original_query}
+
+Here are the tool results:
+{tool_context}
+
+Pick exactly one connected topic that would be useful to follow next.
+The topic should be specific, short, and not identical to the original query.
+
+Return only the topic text.
+If there is no useful connected topic, return NONE.
+"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": "You pick one useful connected research topic. Return only the topic."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+        )
+        
+        topic = (response.choices[0].message.content or "").strip()
+        
+        if not topic or topic.upper() == "NONE":
+            return None
+        
+        if topic.lower() == original_query.lower():
+            return None
+        
+        return topic[:120]
+    
+    except Exception:
+        logger.exception("Follow-up topic selection failed.")
+        return None
+
 
 async def run_research_tools(query: str, tool_names: list[str]) -> list[ToolResult]:
     results = []
@@ -121,7 +252,7 @@ def format_tool_results(
             tool_sections.append(f"Summary: {result.summary}")
 
         for source in result.sources[:5]:
-            source_text = f"- {source.title}"
+            source_text = f"- [{source.provider} / {source.source_type}] {source.title}"
 
             if source.author:
                 source_text += f" by {source.author}"
@@ -148,8 +279,30 @@ def format_tool_results(
 async def run_agent(query: str, context: str | None = None) -> tuple[str, list[ToolResult]]:
     client = get_openai_client()
     
-    tool_names = choose_tools_for_query(query)
+    tool_names = await choose_tools_with_model(query=query, context=context)
     tool_results = await run_research_tools(query=query, tool_names=tool_names)
+    
+    follow_up_query = await choose_follow_up_query(
+        original_query=query,
+        tool_results=tool_results,
+    )
+    
+    if follow_up_query:
+        follow_up_tool_names = choose_tools_for_query(follow_up_query)
+        
+        follow_up_tool_names = [
+            tool_name
+            for tool_name in follow_up_tool_names
+            if tool_name not in {"podcast_search", "youtube_search"}
+        ]
+        
+        follow_up_results = await run_research_tools(
+            query=follow_up_query,
+            tool_names=follow_up_tool_names[:3],
+        )
+        
+        tool_results.extend(follow_up_results)
+        
     tool_context = format_tool_results(tool_results)
     
     messages = [

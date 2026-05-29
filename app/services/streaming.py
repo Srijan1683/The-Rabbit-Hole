@@ -8,9 +8,11 @@ import httpx
 
 from app.agent.agent import (
     TOOL_API_NAMES,
+    choose_tools_with_model,
     choose_tools_for_query,
     format_tool_results,
     get_openai_client,
+    resolve_tool_query,
 )
 from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.rate_limiter import (
@@ -49,8 +51,9 @@ def serialize_sources(sources: list[Source]) -> list[dict]:
 
 async def run_streaming_tools(
     query: str,
+    tool_names: list[str] | None = None,
 ) -> AsyncGenerator[tuple[str, dict], None]:
-    tool_names = choose_tools_for_query(query)
+    tool_names = tool_names or choose_tools_for_query(query)
     tool_results: list[ToolResult] = []
     
     for tool_name in tool_names:
@@ -148,33 +151,36 @@ async def stream_model_response(
     context: str,
     tool_results: list[ToolResult],
 ) -> AsyncGenerator[str, None]:
-    
-    client = get_openai_client()
-    tool_context = format_tool_results(tool_results)
-    
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-    ]
-    
-    if context:
-        messages.append({"role": "system", "content": context})
+    try:
+        client = get_openai_client()
+        tool_context = format_tool_results(tool_results)
         
-    if tool_context:
-        messages.append({"role": "system", "content": tool_context})
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+        ]
         
-    messages.append({"role": "user", "content": query})
-    
-    stream = await client.chat.completions.create(
-        model=settings.openai_model,
-        messages=messages,
-        stream=True,
-    )
+        if context:
+            messages.append({"role": "system", "content": context})
+            
+        if tool_context:
+            messages.append({"role": "system", "content": tool_context})
+            
+        messages.append({"role": "user", "content": query})
+        
+        stream = await client.chat.completions.create(
+            model=settings.openai_model,
+            messages=messages,
+            stream=True,
+        )
 
-    async for chunk in stream:
-        delta = chunk.choices[0].delta.content
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
 
-        if delta:
-            yield delta
+            if delta:
+                yield delta
+
+    except Exception as exc:
+        yield f"\n\nThe model stream stopped before completion: {exc}"
 
     
 async def stream_exploration(
@@ -243,10 +249,16 @@ async def stream_exploration(
                 "session_id": str(session_id),
             },
         )
+
+        tool_query = await resolve_tool_query(query=query, context=context)
+        tool_names = await choose_tools_with_model(query=query, context=context)
         
         tool_results: list[ToolResult] = []
         
-        async for event_name, event_data in run_streaming_tools(query):
+        async for event_name, event_data in run_streaming_tools(
+            query=tool_query,
+            tool_names=tool_names,
+        ):
             if event_name == "_tool_results":
                 tool_results = event_data["tool_results"]
                 continue

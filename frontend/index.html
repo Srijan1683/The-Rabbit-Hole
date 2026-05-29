@@ -13,12 +13,12 @@
           <div class="brand-mark">RH</div>
           <div>
             <h1>The Rabbit Hole</h1>
-            <p>Research agent</p>
+            <p>AI agent</p>
           </div>
         </div>
 
         <button class="new-session-button" id="newSessionButton" type="button">
-          New exploration
+          New session
         </button>
 
         <div class="sidebar-section">
@@ -42,6 +42,7 @@
             <p>Ask for books, papers, videos, podcasts, or a deeper trail through connected ideas.</p>
           </div>
 
+          <div class="user-prompt" id="userPrompt" hidden></div>
           <article class="answer" id="answer"></article>
           <section class="sources" id="sources"></section>
         </section>
@@ -58,7 +59,7 @@
             placeholder="Explore quantum entanglement, the history of jazz, Ada Lovelace..."
             autocomplete="off"
           ></textarea>
-          <button id="submitButton" type="submit">Explore</button>
+          <button id="submitButton" type="submit">Search</button>
         </form>
       </section>
     </main>

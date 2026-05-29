@@ -5,6 +5,7 @@ const sessionTitle = document.querySelector("#sessionTitle");
 const connectionStatus = document.querySelector("#connectionStatus");
 const responsePanel = document.querySelector("#responsePanel");
 const emptyState = document.querySelector("#emptyState");
+const userPrompt = document.querySelector("#userPrompt");
 const answer = document.querySelector("#answer");
 const sources = document.querySelector("#sources");
 const activityList = document.querySelector("#activityList");
@@ -16,6 +17,9 @@ const newSessionButton = document.querySelector("#newSessionButton");
 let activeSessionId = null;
 let activeStream = null;
 let responseText = "";
+let currentQuery = "";
+let renderQueued = false;
+let streamFinished = false;
 
 function setStatus(label, state = "idle") {
   connectionStatus.textContent = label;
@@ -65,12 +69,37 @@ function showAnswer() {
   responsePanel.scrollTop = responsePanel.scrollHeight;
 }
 
+function scheduleAnswerRender() {
+  if (renderQueued) {
+    return;
+  }
+
+  renderQueued = true;
+
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    showAnswer();
+  });
+}
+
 function clearWorkspace() {
   responseText = "";
+  currentQuery = "";
+  renderQueued = false;
+  streamFinished = false;
   answer.innerHTML = "";
   sources.innerHTML = "";
   activityList.innerHTML = "";
+  userPrompt.hidden = true;
+  userPrompt.textContent = "";
   emptyState.style.display = "";
+}
+
+function showUserPrompt(query) {
+  currentQuery = query;
+  userPrompt.textContent = query;
+  userPrompt.hidden = false;
+  emptyState.style.display = "none";
 }
 
 function addActivity(type, payload) {
@@ -87,10 +116,40 @@ function addActivity(type, payload) {
   activityList.scrollTop = activityList.scrollHeight;
 }
 
+function sourcePriority(source) {
+  const query = currentQuery.toLowerCase();
+  const provider = source.provider || "";
+  const sourceType = source.source_type || "";
+
+  if (/\b(video|videos|youtube|watch|lecture|documentary|talk)\b/.test(query)) {
+    if (provider === "youtube" || sourceType === "video") return 0;
+    if (provider === "wikipedia") return 2;
+    return 1;
+  }
+
+  if (/\b(podcast|podcasts|listen|audio|episode)\b/.test(query)) {
+    if (provider === "podcast_index" || sourceType === "podcast") return 0;
+    if (provider === "youtube") return 2;
+    return 1;
+  }
+
+  if (/\b(book|books|read|author|novel|biography)\b/.test(query)) {
+    if (provider === "open_library" || sourceType === "book") return 0;
+    if (provider === "arxiv" || sourceType === "paper") return 1;
+    return 2;
+  }
+
+  return 1;
+}
+
 function renderSources(sourceList) {
   sources.innerHTML = "";
 
-  for (const source of sourceList || []) {
+  const orderedSources = [...(sourceList || [])].sort(
+    (a, b) => sourcePriority(a) - sourcePriority(b),
+  );
+
+  for (const source of orderedSources) {
     const card = document.createElement("article");
     card.className = "source-card";
 
@@ -195,7 +254,7 @@ function renderSessions(sessions) {
     deleteButton.className = "session-delete";
     deleteButton.title = "Delete session";
     deleteButton.setAttribute("aria-label", `Delete ${session.title || "session"}`);
-    deleteButton.textContent = "×";
+    deleteButton.innerHTML = '<span class="trash-icon" aria-hidden="true"></span>';
 
     deleteButton.addEventListener("click", () => {
       deleteSession(session.session_id);
@@ -254,6 +313,14 @@ async function loadHistory(sessionId) {
       responseText = lastAssistant.content;
       showAnswer();
     }
+
+    const lastUser = [...messages]
+      .reverse()
+      .find((message) => message.role === "user");
+
+    if (lastUser) {
+      showUserPrompt(lastUser.content);
+    }
   } catch {
     addActivity("error", { message: "History unavailable" });
   }
@@ -262,6 +329,7 @@ async function loadHistory(sessionId) {
 function startExploration(query) {
   closeActiveStream();
   clearWorkspace();
+  showUserPrompt(query);
   setStatus("Streaming", "busy");
   submitButton.disabled = true;
   queryInput.disabled = true;
@@ -284,7 +352,7 @@ function startExploration(query) {
   activeStream.addEventListener("content", (event) => {
     const data = parseEvent(event);
     responseText += data.delta || data.response || "";
-    showAnswer();
+    scheduleAnswerRender();
   });
 
   activeStream.addEventListener("sources", (event) => {
@@ -294,6 +362,7 @@ function startExploration(query) {
 
   activeStream.addEventListener("done", (event) => {
     const data = parseEvent(event);
+    streamFinished = true;
 
     if (data.session_id) {
       activeSessionId = data.session_id;
@@ -309,9 +378,24 @@ function startExploration(query) {
   activeStream.addEventListener("error", (event) => {
     const data = parseEvent(event);
 
+    if (!event.data && !streamFinished) {
+      addActivity("error", {
+        message: "Stream connection interrupted before completion",
+      });
+      responseText += "\n\nThe stream was interrupted before the response finished. Please retry the same prompt.";
+      scheduleAnswerRender();
+      setStatus("Interrupted", "error");
+      submitButton.disabled = false;
+      queryInput.disabled = false;
+      closeActiveStream();
+      return;
+    }
+
     addActivity("error", {
       message: data.message || "Stream connection interrupted",
     });
+    responseText += `\n\n${data.message || "The stream was interrupted before the response finished."}`;
+    scheduleAnswerRender();
     setStatus("Error", "error");
     submitButton.disabled = false;
     queryInput.disabled = false;
@@ -332,6 +416,7 @@ exploreForm.addEventListener("submit", (event) => {
     sessionTitle.textContent = query;
   }
 
+  queryInput.value = "";
   startExploration(query);
 });
 

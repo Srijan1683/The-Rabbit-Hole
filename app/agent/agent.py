@@ -1,4 +1,5 @@
 import asyncio
+import html
 import json
 import re
 
@@ -26,6 +27,14 @@ TOOL_API_NAMES = {
 }
 
 logger = get_logger(__name__)
+
+
+def clean_source_text(value: str | None) -> str:
+    if not value:
+        return ""
+
+    return html.unescape(value).strip()
+
 
 def get_openai_client() -> AsyncOpenAI:
     return AsyncOpenAI(
@@ -134,6 +143,57 @@ Example:
         logger.exception("Model tool selection failed. Falling back to keyword selection.")
         
     return choose_tools_for_query(query)
+
+
+async def resolve_tool_query(query: str, context: str | None = None) -> str:
+    if not context:
+        return query
+
+    client = get_openai_client()
+
+    prompt = f"""
+Rewrite the user's request into a concise external search query for API tools.
+
+User request:
+{query}
+
+Conversation context:
+{context}
+
+Rules:
+- Resolve vague references like "it", "that", "this", "the experiment", or "the theory" using the conversation context.
+- Preserve the user's intent, such as videos, podcasts, books, origin, explanation, history, or research papers.
+- Return only the rewritten search query.
+- Do not answer the user.
+
+Examples:
+User request: can you suggest videos that explain where it originated from and what it is
+Context topic: Schrodinger's cat
+Search query: Schrodinger's cat origin explanation videos
+"""
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You rewrite follow-up requests into precise search queries. Return only the query.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
+
+        resolved_query = (response.choices[0].message.content or "").strip()
+
+        if resolved_query:
+            return resolved_query[:160]
+
+    except Exception:
+        logger.exception("Tool query resolution failed. Using original query.")
+
+    return query
 
 
 async def choose_follow_up_query(
@@ -252,16 +312,16 @@ def format_tool_results(
             tool_sections.append(f"Summary: {result.summary}")
 
         for source in result.sources[:5]:
-            source_text = f"- [{source.provider} / {source.source_type}] {source.title}"
+            source_text = f"- [{source.provider} / {source.source_type}] {clean_source_text(source.title)}"
 
             if source.author:
-                source_text += f" by {source.author}"
+                source_text += f" by {clean_source_text(source.author)}"
 
             if source.url:
                 source_text += f" ({source.url})"
 
             if source.summary:
-                source_text += f"\n  {source.summary}"
+                source_text += f"\n  {clean_source_text(source.summary)}"
 
             tool_sections.append(source_text)
 
@@ -279,8 +339,9 @@ def format_tool_results(
 async def run_agent(query: str, context: str | None = None) -> tuple[str, list[ToolResult]]:
     client = get_openai_client()
     
+    tool_query = await resolve_tool_query(query=query, context=context)
     tool_names = await choose_tools_with_model(query=query, context=context)
-    tool_results = await run_research_tools(query=query, tool_names=tool_names)
+    tool_results = await run_research_tools(query=tool_query, tool_names=tool_names)
     
     follow_up_query = await choose_follow_up_query(
         original_query=query,

@@ -29,6 +29,10 @@ Never put a source in Listen unless its provider is podcast_index or its source_
 Never put a source in Watch unless its provider is youtube or its source_type is video.
 If no podcast_index sources exist, omit Listen completely.
 Do not invent recommendations for a section if the relevant tool did not return sources.
+If the user explicitly asks for videos, make Watch the primary recommendation section and place it before Read.
+If the user explicitly asks for podcasts or audio, make Listen the primary recommendation section and place it before Read.
+If the user explicitly asks for books or papers, make Read the primary recommendation section.
+Use Wikipedia as background when the user asks for a specific media type; do not lead with Wikipedia sources unless the user asked for general explanation.
 
 When sources are available, explain briefly why each recommendation is relevant.
 When connected concepts appear in the tool results, use them to deepen the answer instead of only summarizing the original topic.

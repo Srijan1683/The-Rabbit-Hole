@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import html
 
 import httpx
 import time
@@ -88,13 +89,13 @@ async def search_videos(query: str, limit: int = 5) -> ToolResult:
         results.append(
             {
                 "video_id": video_id,
-                "title": title,
-                "description": description,
-                "channel_title": channel_title,
+                "title": html.unescape(title) if title else title,
+                "description": html.unescape(description) if description else description,
+                "channel_title": html.unescape(channel_title) if channel_title else channel_title,
                 "published_at": published_at,
                 "thumbnail_url": thumbnail_url,
                 "url": url,
-                "summary": description,
+                "summary": html.unescape(description) if description else description,
             }
         )
     

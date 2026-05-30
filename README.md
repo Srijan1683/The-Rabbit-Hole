@@ -7,6 +7,12 @@ This is not a search engine. It's a research companion that follows connections,
 
 ---
 
+## Current Status
+
+The backend and local frontend are working as a complete v1. The app supports session memory, tool-backed exploration, cached external API calls, token-aware context selection, rate-limit handling, and live SSE streaming into a simple browser UI.
+
+---
+
 ## What It Does
 
 You type a topic. The agent:
@@ -98,6 +104,10 @@ rabbit-hole/
 │       ├── sessions.py          # Session and history endpoints
 │       ├── explore.py           # Main explore endpoint and stream endpoint
 │       └── admin.py             # Rate limit and diagnostics endpoints
+├── frontend/
+│   ├── index.html                # Browser UI
+│   ├── styles.css                # App styling
+│   └── app.js                    # SSE client, sessions, source rendering
 ├── migrations/
 │   └── 001_initial_schema.sql   # Full database schema
 ├── docker-compose.yml           # Local Postgres service for development
@@ -137,6 +147,7 @@ cached_api_responses      — cached results to avoid redundant API calls
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/explore` | Send a query to the agent (streaming or non-streaming) |
+| `GET` | `/explore/stream` | SSE stream for a new session |
 | `GET` | `/explore/{session_id}/stream` | SSE stream of agent execution |
 
 ### History

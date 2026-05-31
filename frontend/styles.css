@@ -322,10 +322,20 @@ strong {
   border-bottom: 1px solid var(--border);
 }
 
+.topbar-title {
+  min-width: 0;
+}
+
 .topbar h2 {
   margin-top: var(--space-1);
   font-size: clamp(1.4rem, 2.5vw, 2.35rem);
   line-height: 1;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .connection-pill {
@@ -336,6 +346,34 @@ strong {
   background: var(--surface);
   color: var(--accent);
   text-align: center;
+}
+
+.mobile-icon-button,
+.sidebar-backdrop {
+  display: none;
+}
+
+.mobile-icon-button {
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-tight);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.menu-button {
+  gap: 4px;
+}
+
+.menu-button span {
+  display: block;
+  width: 15px;
+  height: 1px;
+  background: currentColor;
 }
 
 .connection-pill.busy {
@@ -739,17 +777,45 @@ strong {
   }
 
   .app-shell {
-    grid-template-rows: auto minmax(0, 1fr);
+    position: relative;
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 20;
+    width: min(86vw, 320px);
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "brand"
-      "action"
       "sessions";
-    max-height: 196px;
     padding: 12px var(--space-2);
+    border-bottom: 0;
+    border-left: 1px solid var(--border);
+    transform: translateX(100%);
+    transition: transform 180ms ease;
+  }
+
+  .sessions-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    border: 0;
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+  }
+
+  .sessions-open .sidebar-backdrop {
+    display: block;
   }
 
   .brand-mark {
@@ -766,17 +832,23 @@ strong {
   }
 
   .new-session-button {
-    width: 100%;
-    min-width: 0;
+    display: none;
   }
 
   .section-label {
     font-size: 0.64rem;
   }
 
+  .session-list {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0 2px 0 0;
+  }
+
   .session-item {
-    min-width: 190px;
-    max-width: 220px;
+    min-width: 0;
+    max-width: none;
   }
 
   .session-name {
@@ -792,8 +864,8 @@ strong {
   }
 
   .topbar {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
     gap: var(--space-1);
     min-height: auto;
     padding-top: var(--space-2);
@@ -807,10 +879,22 @@ strong {
     line-height: 1.05;
   }
 
+  .topbar-title {
+    flex: 1;
+  }
+
+  .topbar-actions {
+    flex: 0 0 auto;
+  }
+
   .connection-pill {
     min-width: 0;
     padding: 6px var(--space-1);
     font-size: 0.64rem;
+  }
+
+  .mobile-icon-button {
+    display: grid;
   }
 
   .response-panel {
@@ -863,28 +947,7 @@ strong {
   }
 
   .activity-panel {
-    min-height: 72px;
-    max-height: 92px;
-    padding-top: var(--space-1);
-    padding-bottom: var(--space-1);
-  }
-
-  .activity-list {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 2px;
-  }
-
-  .activity-item {
-    flex: 0 0 auto;
-    max-width: 260px;
-  }
-
-  .activity-item span:last-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
   }
 
   .composer {
@@ -909,7 +972,7 @@ strong {
 
 @media (max-width: 420px) {
   .sidebar {
-    max-height: 180px;
+    width: min(90vw, 300px);
   }
 
   .brand-mark {

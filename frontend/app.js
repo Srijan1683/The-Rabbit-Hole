@@ -15,6 +15,10 @@ const exploreForm = document.querySelector("#exploreForm");
 const queryInput = document.querySelector("#queryInput");
 const submitButton = document.querySelector("#submitButton");
 const newSessionButton = document.querySelector("#newSessionButton");
+const mobileNewSessionButton = document.querySelector("#mobileNewSessionButton");
+const sessionMenuButton = document.querySelector("#sessionMenuButton");
+const sidebarBackdrop = document.querySelector("#sidebarBackdrop");
+const appShell = document.querySelector("#appShell");
 
 let activeSessionId = null;
 let activeStream = null;
@@ -317,6 +321,7 @@ function renderSessions(sessions) {
       clearWorkspace();
       loadHistory(session.session_id);
       renderSessions(sessions);
+      closeSessionMenu();
     });
 
     const deleteButton = document.createElement("button");
@@ -334,6 +339,36 @@ function renderSessions(sessions) {
     item.appendChild(deleteButton);
     sessionList.appendChild(item);
   }
+}
+
+function openSessionMenu() {
+  appShell.classList.add("sessions-open");
+  sessionMenuButton.setAttribute("aria-expanded", "true");
+}
+
+function closeSessionMenu() {
+  appShell.classList.remove("sessions-open");
+  sessionMenuButton.setAttribute("aria-expanded", "false");
+}
+
+function toggleSessionMenu() {
+  if (appShell.classList.contains("sessions-open")) {
+    closeSessionMenu();
+    return;
+  }
+
+  openSessionMenu();
+}
+
+function startNewSession() {
+  closeActiveStream();
+  activeSessionId = null;
+  sessionTitle.textContent = "Untitled session";
+  queryInput.value = "";
+  clearWorkspace();
+  setStatus("Idle");
+  closeSessionMenu();
+  loadSessions();
 }
 
 async function deleteSession(sessionId) {
@@ -503,15 +538,10 @@ exploreForm.addEventListener("submit", (event) => {
   startExploration(query);
 });
 
-newSessionButton.addEventListener("click", () => {
-  closeActiveStream();
-  activeSessionId = null;
-  sessionTitle.textContent = "Untitled session";
-  queryInput.value = "";
-  clearWorkspace();
-  setStatus("Idle");
-  loadSessions();
-});
+newSessionButton.addEventListener("click", startNewSession);
+mobileNewSessionButton.addEventListener("click", startNewSession);
+sessionMenuButton.addEventListener("click", toggleSessionMenu);
+sidebarBackdrop.addEventListener("click", closeSessionMenu);
 
 queryInput.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {

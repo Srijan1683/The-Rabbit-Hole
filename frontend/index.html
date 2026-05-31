@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="app-shell">
+    <main class="app-shell" id="appShell">
       <aside class="sidebar" aria-label="Sessions">
         <div class="brand">
           <div class="brand-mark">RH</div>
@@ -35,11 +35,32 @@
 
       <section class="workspace" aria-label="Explorer">
         <header class="topbar">
-          <div>
+          <div class="topbar-title">
             <div class="eyebrow">Live exploration</div>
             <h2 id="sessionTitle">Untitled session</h2>
           </div>
-          <div class="connection-pill" id="connectionStatus">Idle</div>
+          <div class="topbar-actions">
+            <div class="connection-pill" id="connectionStatus">Idle</div>
+            <button
+              class="mobile-icon-button"
+              id="mobileNewSessionButton"
+              type="button"
+              aria-label="New session"
+            >
+              +
+            </button>
+            <button
+              class="mobile-icon-button menu-button"
+              id="sessionMenuButton"
+              type="button"
+              aria-label="Open sessions"
+              aria-expanded="false"
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
         </header>
 
         <section class="response-panel" id="responsePanel">
@@ -67,6 +88,7 @@
           <button id="submitButton" type="submit">Search</button>
         </form>
       </section>
+      <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Close sessions"></button>
     </main>
 
     <script src="./config.js"></script>

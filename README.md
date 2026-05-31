@@ -1,257 +1,207 @@
-# 🐇 The Rabbit Hole
+# The Rabbit Hole
 
+The Rabbit Hole is a personal AI agent that explores any topic through connected sources instead of returning a flat search result. It combines a FastAPI backend, Postgres session memory, external research tools, token-aware context management, rate-limit handling, live SSE streaming, and a responsive browser UI.
 
-An AI agent that takes any topic and spirals into connected discoveries across multiple knowledge domains. Give it *"Dyson Sphere"* and it pulls the core concept from Wikipedia, finds related books on Open Library, surfaces research papers from arXiv, discovers podcast episodes, and finds YouTube talks — all while deciding which sources are relevant based on what the topic actually is.
-
-This is not a search engine. It's a research companion that follows connections, maintains memory across a conversation, and gets smarter the deeper you go.
-
----
-
-## Current Status
-
-The backend and local frontend are working as a complete v1. The app supports session memory, tool-backed exploration, cached external API calls, token-aware context selection, rate-limit handling, and live SSE streaming into a simple browser UI.
+Give it a topic like `Dyson Sphere`, `Quantum entanglement`, or `The history of jazz`, and it can pull together articles, books, papers, podcasts, and videos while keeping the conversation history available for follow-up questions.
 
 ---
 
 ## What It Does
 
-You type a topic. The agent:
+The agent:
 
-1. Reasons about which knowledge domains are relevant
-2. Searches across up to 5 external sources simultaneously
-3. Follows connections it discovers (a Wikipedia article mentions Carl Sagan → it goes and finds his books)
-4. Composes a structured response: Overview, Connected Concepts, Read, Listen, Watch
-5. Remembers everything so you can say *"go deeper on that second point"* and it knows exactly what you mean
+1. Reads the user query and conversation context.
+2. Selects relevant tools instead of calling every source blindly.
+3. Searches external APIs for articles, books, papers, podcasts, and videos.
+4. Caches API responses to avoid redundant calls.
+5. Tracks rate limits and handles throttled APIs safely.
+6. Streams the answer to the frontend in real time.
+7. Stores sessions, messages, tool calls, sources, and token usage in Postgres.
 
 ---
 
-## The Five Sources
+## Sources
 
-| Source | Domain | What It Provides |
-|--------|--------|-----------------|
-| Wikipedia API | Core knowledge | Article summaries, linked entities, structured facts |
-| Open Library API | Books | Book search, author info, subjects, full metadata |
-| arXiv API | Research papers | Paper search, abstracts, authors, categories |
-| Podcast Index API | Audio content | Episode search across 4M+ podcasts |
-| YouTube Data API | Video content | Video search, talks, documentaries, lectures |
-
-The agent decides which ones matter. *"Quantum entanglement"* hits arXiv hard. *"History of jazz"* skips arXiv and goes heavy on YouTube and podcasts.
+| Source | Purpose |
+| --- | --- |
+| Wikipedia API | Article summaries and core topic context |
+| Open Library API | Books, authors, subjects, and reading paths |
+| arXiv API | Research papers, abstracts, authors, and categories |
+| Podcast Index API | Podcast episodes and audio sources |
+| YouTube Data API | Videos, lectures, explainers, and talks |
 
 ---
 
 ## Tech Stack
 
-| Library | Purpose |
-|---------|---------|
-| `fastapi` | Web framework and API server |
+| Library / Tool | Purpose |
+| --- | --- |
+| `fastapi` | API server and route layer |
 | `uvicorn` | ASGI server |
-| `openai` | OpenAI SDK — underlying LLM calls |
-| `openai-agents` | OpenAI Agents SDK — tool calling and agent loop |
-| `asyncpg` | Async PostgreSQL driver — raw SQL, no ORM |
-| `httpx` | Async HTTP client for external API calls |
-| `sse-starlette` | Server-Sent Events for real-time streaming |
-| `tiktoken` | Token counting for context window management |
-| `pydantic` | Data validation and models |
-| `python-dotenv` | Environment variable management |
+| `openai` | OpenRouter/OpenAI-compatible model calls |
+| `asyncpg` | Async PostgreSQL access with raw SQL |
+| `httpx` | Async external API requests |
+| `sse-starlette` | Server-Sent Events for streaming |
+| `tiktoken` | Token counting and context budgeting |
+| `pydantic` | Request, response, and domain models |
+| `python-dotenv` | Local environment variable loading |
+| Docker Compose | Local Postgres database |
+| Render | Backend and hosted Postgres deployment |
+| Netlify | Static frontend deployment |
 
 ---
 
 ## Project Structure
 
-```
-rabbit-hole/
+```text
+The Rabbit Hole/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py                  # FastAPI app, startup, shutdown
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── config.py            # Environment variables, model names, API settings
-│   │   ├── logging.py           # App logging configuration
-│   │   └── errors.py            # Shared exceptions and error helpers
+│   ├── main.py                         # FastAPI app, CORS, lifespan, routers
 │   ├── agent/
-│   │   ├── __init__.py
-│   │   ├── agent.py             # OpenAI Agents SDK setup and agent definition
-│   │   ├── prompts.py           # System prompt and agent instructions
-│   │   ├── registry.py          # Tool registration for the agent
-│   │   ├── token_manager.py     # Token budget calculator, history truncation
-│   │   └── rate_limiter.py      # Rate limit tracking, backoff strategies
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── exploration.py       # Main explore workflow: memory → agent → persistence
-│   │   ├── streaming.py         # SSE event formatting and stream lifecycle
-│   │   └── memory.py            # Session context loading and summarization decisions
-│   ├── tools/
-│   │   ├── __init__.py
-│   │   ├── wikipedia.py         # Wikipedia API wrapper
-│   │   ├── open_library.py      # Open Library API wrapper
-│   │   ├── arxiv.py             # arXiv API wrapper
-│   │   ├── podcast_index.py     # Podcast Index API wrapper
-│   │   └── youtube.py           # YouTube Data API wrapper
+│   │   ├── agent.py                    # Agent runner, tool selection, model calls
+│   │   ├── prompts.py                  # System prompt and response rules
+│   │   ├── rate_limiter.py             # In-memory rate-limit state and backoff
+│   │   ├── registry.py                 # Tool registry and tool metadata
+│   │   └── token_manager.py            # Token budgets and truncation helpers
+│   ├── core/
+│   │   ├── config.py                   # Environment-backed settings
+│   │   ├── errors.py                   # Shared application exceptions
+│   │   └── logging.py                  # Logging setup
 │   ├── db/
-│   │   ├── __init__.py
-│   │   ├── pool.py              # asyncpg connection pool setup
-│   │   ├── sessions.py          # Session CRUD operations
-│   │   ├── history.py           # Conversation history storage and retrieval
-│   │   └── cache.py             # API response caching
+│   │   ├── cache.py                    # Cached API response helpers
+│   │   ├── history.py                  # Messages, tool calls, API usage SQL
+│   │   ├── pool.py                     # asyncpg pool lifecycle
+│   │   └── sessions.py                 # Session CRUD SQL
 │   ├── models/
-│   │   ├── __init__.py
-│   │   ├── session.py           # Session Pydantic models
-│   │   ├── conversation.py      # Message, ExploreRequest, ExploreResponse models
-│   │   ├── tool.py              # Tool input/output and source metadata models
-│   │   └── token.py             # TokenBudget, RateLimitStatus models
-│   └── routes/
-│       ├── __init__.py
-│       ├── sessions.py          # Session and history endpoints
-│       ├── explore.py           # Main explore endpoint and stream endpoint
-│       └── admin.py             # Rate limit and diagnostics endpoints
+│   │   ├── conversation.py             # Messages and explore request/response models
+│   │   ├── session.py                  # Session models
+│   │   ├── token.py                    # Token and rate-limit models
+│   │   └── tool.py                     # Source and tool result models
+│   ├── routes/
+│   │   ├── admin.py                    # Health, tools, rate-limit endpoints
+│   │   ├── explore.py                  # Explore and SSE endpoints
+│   │   └── sessions.py                 # Session/history endpoints
+│   ├── services/
+│   │   ├── exploration.py              # Non-streaming explore workflow
+│   │   ├── memory.py                   # Token counting and history storage
+│   │   └── streaming.py                # SSE explore workflow
+│   └── tools/
+│       ├── arxiv.py                    # arXiv wrapper
+│       ├── open_library.py             # Open Library wrapper
+│       ├── podcast_index.py            # Podcast Index wrapper
+│       ├── wikipedia.py                # Wikipedia wrapper
+│       └── youtube.py                  # YouTube wrapper
+├── docs/
+│   ├── workflow.md                     # Mermaid workflow diagrams
+│   ├── workflow.html                   # Animated workflow webpage
+│   ├── workflow.css
+│   └── workflow.js
 ├── frontend/
-│   ├── index.html                # Browser UI
-│   ├── styles.css                # App styling
-│   └── app.js                    # SSE client, sessions, source rendering
+│   ├── app.js                          # Chat UI, SSE client, sessions, source cards
+│   ├── config.js                       # Frontend API base URL
+│   ├── index.html                      # Frontend shell
+│   └── styles.css                      # Responsive UI styling
 ├── migrations/
-│   └── 001_initial_schema.sql   # Full database schema
-├── docker-compose.yml           # Local Postgres service for development
-├── .env.example                 # Environment variable template
-├── .gitignore
+│   └── 001_initial_schema.sql          # Initial Postgres schema
+├── scripts/
+│   └── apply_migrations.py             # One-time migration runner
+├── .env.example                        # Local environment template
+├── docker-compose.yml                  # Local Postgres service
+├── LICENSE                             # Restrictive project license
+├── netlify.toml                        # Netlify frontend config
+├── render.yaml                         # Render backend/Postgres blueprint
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Database Schema
+## Database
 
-Five tables. Raw SQL, no ORM.
+The project uses raw SQL with `asyncpg`, no ORM.
 
-```
-sessions                  — conversation sessions with metadata
-conversation_history      — all user and assistant messages with token counts
-tool_call_log             — every external API call the agent made
-api_usage                 — rate limit tracking and response time logging
-cached_api_responses      — cached results to avoid redundant API calls
-```
+| Table | Purpose |
+| --- | --- |
+| `sessions` | Conversation sessions and metadata |
+| `conversation_history` | User and assistant messages with token counts |
+| `tool_call_log` | Tool calls made during exploration |
+| `api_usage` | External API status, latency, and rate-limit metadata |
+| `cached_api_responses` | Cached external API responses with TTLs |
 
 ---
 
-## API Endpoints
+## API
 
 ### Sessions
+
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/sessions` | Create a new session |
-| `GET` | `/sessions` | List all sessions (paginated) |
-| `GET` | `/sessions/{session_id}` | Get session details |
-| `DELETE` | `/sessions/{session_id}` | Delete session and all history |
+| --- | --- | --- |
+| `POST` | `/sessions` | Create a session |
+| `GET` | `/sessions` | List sessions |
+| `GET` | `/sessions/{session_id}` | Get one session |
+| `DELETE` | `/sessions/{session_id}` | Delete a session and its history |
+| `GET` | `/sessions/{session_id}/history` | Get conversation history |
+| `GET` | `/sessions/{session_id}/tool-calls` | Get stored tool calls |
 
 ### Explore
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/explore` | Send a query to the agent (streaming or non-streaming) |
-| `GET` | `/explore/stream` | SSE stream for a new session |
-| `GET` | `/explore/{session_id}/stream` | SSE stream of agent execution |
 
-### History
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/sessions/{session_id}/history` | Get conversation history |
-| `GET` | `/sessions/{session_id}/tool-calls` | Get all tool calls for a session |
+| --- | --- | --- |
+| `POST` | `/explore` | Run a non-streaming exploration |
+| `GET` | `/explore/stream` | Stream a new exploration with SSE |
+| `GET` | `/explore/{session_id}/stream` | Stream a follow-up exploration in an existing session |
 
 ### Admin
+
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/rate-limits` | Current rate limit status for all external APIs |
+| --- | --- | --- |
+| `GET` | `/health` | Health check |
+| `GET` | `/tools` | Available tool names |
+| `GET` | `/rate-limits` | Current in-memory rate-limit status |
 
 ---
 
-## SSE Event Types
-
-When streaming, the client receives real-time events as the agent works:
+## SSE Events
 
 | Event | Meaning |
-|-------|---------|
-| `thinking` | Agent is reasoning about which tools to use |
-| `tool_call` | Agent is calling an external API |
-| `tool_result` | Tool returned results |
-| `content` | Agent is generating response text |
-| `sources` | Final list of all sources used |
-| `done` | Response complete |
-| `error` | Something went wrong |
+| --- | --- |
+| `thinking` | Exploration has started |
+| `tool_call` | A tool is about to run |
+| `tool_result` | A tool returned, skipped, or failed safely |
+| `content` | A chunk of assistant response text |
+| `sources` | Final source list |
+| `done` | Stream completed |
+| `error` | Stream failed |
 
 ---
 
-## Implementation Phases
+## Frontend
 
-### Phase 1 — Postgres + Session Management
-- Set up asyncpg connection pool on app startup
-- Implement session CRUD with raw SQL
-- Store and retrieve conversation history with token counts
-- Auto-update `last_active_at` and `message_count` on every interaction
+The frontend is a static HTML/CSS/JS app. It supports:
 
-### Phase 2 — External API Tool Functions
-- Build async wrapper for each of the 5 APIs
-- Each wrapper handles errors, logs to `api_usage`, checks cache before calling
-- Cache every response with TTLs (Wikipedia: 24h, YouTube: 6h, arXiv: 7d)
-- Return structured Pydantic models from every tool
+- Live streaming responses
+- Session list and session deletion
+- Follow-up prompts in the same session
+- Source cards ordered by query intent
+- Responsive mobile layout with a sessions drawer
+- A separate animated workflow page under `docs/workflow.html`
 
-### Phase 3 — Agent Setup with OpenAI Agents SDK
-- Define agent with a system prompt that instructs it to reason before calling tools
-- Register each API wrapper as a named tool with descriptive docstrings
-- Wire agent to `/explore`: load history → build context → run agent → store results
-- Test with diverse queries to verify intelligent tool selection
-
-### Phase 4 — Token Counting + Context Window Management
-- Build token budget calculator per model (e.g., gpt-4o = 128K context)
-- Allocate tokens: system prompt → current query → reserve for response → fill with history
-- Implement history truncation: recency-first, always keep first message, summarize overflow
-- Cap per-tool output token size to prevent tool results from flooding context
-
-### Phase 5 — Rate Limit Management
-- Track rate limit headers after every external API call
-- Implement exponential backoff with jitter on 429 responses
-- Proactively slow down when quota drops below 10%
-- Expose `/rate-limits` endpoint showing live status for all APIs
-
-### Phase 6 — SSE Streaming
-- Stream agent execution in real-time using `sse-starlette`
-- Emit typed events: `thinking`, `tool_call`, `tool_result`, `content`, `sources`, `done`
-- Handle client disconnection mid-stream — stop agent, don't waste API calls
-- Always persist full response to Postgres regardless of streaming
+The frontend API target is configured in `frontend/config.js`.
 
 ---
 
-## Key Concepts
+## Deployment
 
-### How Tool Calling Works
+The deployment files are included in the repo:
 
-The agent does not execute tools itself. The loop is:
+- `render.yaml` creates the backend service and Postgres database on Render.
+- `netlify.toml` deploys the static frontend from `frontend/`.
+- `scripts/apply_migrations.py` applies the initial schema to the deployed database.
 
-```
-1. Model receives: system prompt + history + available tools
-2. Model outputs: "I want to call Wikipedia with query X"
-3. Your code: executes the Wikipedia API call
-4. Model receives: the results
-5. Model decides: call another tool OR generate final response
-6. Repeat until response is generated
-```
-
-Tool descriptions are prompts. How you describe each tool directly determines when the agent uses it.
-
-### Why Context Window Management Matters
-
-gpt-4o has 128K tokens. That sounds like a lot until a long session has 20 conversation messages, 5 tool results, and a detailed system prompt. Without token budgeting, the agent silently loses earlier context, hallucinates about past conversation, or errors out entirely. Every production agent needs this.
-
-### Why Sessions Matter
-
-A session isn't just chat history. It's the full research journey — what was asked, what tools were called, what was found, what connections were made. When you say *"go deeper on that"*, the agent needs the entire journey to know what *"that"* refers to.
+Backend secrets are kept on Render. The frontend only stores the public backend URL in `frontend/config.js`.
 
 ---
 
-## Stretch Goals
+## License
 
-- **Exploration graph** — Mermaid diagram showing which topics branched into which discoveries
-- **"Surprise me" mode** — Agent picks a random connected concept and explores it unprompted
-- **Depth control** — `go shallow` (overview + top 3 links) vs `go deep` (follow every thread)
-- **Export session** — Download the full exploration as a formatted markdown research report
-- **Multi-user sessions** — Multiple users exploring the same topic together
-
----
+This project is all rights reserved. See `LICENSE`.

@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: the-rabbit-hole-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        fromDatabase:
+          name: the-rabbit-hole-db
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: OPENAI_MODEL
+        value: openai/gpt-4o-mini
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: PODCAST_INDEX_API_KEY
+        sync: false
+      - key: PODCAST_INDEX_API_SECRET
+        sync: false
+
+databases:
+  - name: the-rabbit-hole-db
+    plan: free

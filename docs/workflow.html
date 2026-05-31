@@ -14,19 +14,32 @@
             <p class="eyebrow">The Rabbit Hole</p>
             <h1>AI Agent Workflow</h1>
           </div>
-          <div class="status-panel">
-            <span class="status-dot"></span>
-            <span id="statusText">initializing workflow trace</span>
+          <div class="header-controls">
+            <button class="reset-button" id="resetButton" type="button">Reset simulation</button>
+            <div class="status-panel">
+              <span class="status-dot"></span>
+              <span id="statusText">initializing workflow trace</span>
+            </div>
           </div>
         </header>
 
         <div class="board" id="board">
-          <svg class="connections" id="connections" viewBox="0 0 1500 820" aria-hidden="true"></svg>
-          <div class="lane-label lane-client">client</div>
-          <div class="lane-label lane-api">fastapi service</div>
-          <div class="lane-label lane-agent">agent core</div>
-          <div class="lane-label lane-data">data + external systems</div>
+          <svg class="connections" id="connections" viewBox="0 0 1200 660" aria-hidden="true"></svg>
+          <div class="lane-label lane-input">input</div>
+          <div class="lane-label lane-core">agent workflow</div>
+          <div class="lane-label lane-output">output</div>
           <div id="nodes"></div>
+          <aside class="error-rail">
+            <h2>handled failures</h2>
+            <ul>
+              <li>API rate limit</li>
+              <li>429 retry + jitter</li>
+              <li>Malformed API response</li>
+              <li>Model rate limit</li>
+              <li>Client disconnect</li>
+              <li>Database startup failure</li>
+            </ul>
+          </aside>
           <aside class="trace-panel">
             <h2>trace</h2>
             <ol id="traceList"></ol>

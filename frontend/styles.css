@@ -29,6 +29,7 @@
 html,
 body {
   height: 100%;
+  min-height: 100%;
   overflow: hidden;
 }
 
@@ -97,6 +98,7 @@ strong {
   display: grid;
   grid-template-columns: 304px minmax(0, 1fr);
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg);
 }
@@ -667,18 +669,59 @@ strong {
 
 @media (max-width: 900px) {
   .app-shell {
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: 1fr;
   }
 
   .sidebar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand action"
+      "sessions sessions";
+    gap: var(--space-2);
     min-height: 0;
-    max-height: 216px;
+    max-height: 180px;
+    padding: var(--space-2) var(--space-3);
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
 
+  .brand {
+    grid-area: brand;
+    min-width: 0;
+  }
+
+  .brand h1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .new-session-button {
+    grid-area: action;
+    width: auto;
+    min-width: 132px;
+    padding: 10px 12px;
+  }
+
+  .sidebar-section {
+    grid-area: sessions;
+    min-width: 0;
+    gap: var(--space-1);
+  }
+
   .session-list {
-    max-height: 152px;
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 0 2px;
+  }
+
+  .session-item {
+    min-width: 220px;
+    max-width: 260px;
   }
 
   .topbar,
@@ -691,16 +734,209 @@ strong {
 }
 
 @media (max-width: 620px) {
+  body {
+    font-size: 14px;
+  }
+
+  .app-shell {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .sidebar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "brand"
+      "action"
+      "sessions";
+    max-height: 196px;
+    padding: 12px var(--space-2);
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand h1 {
+    font-size: 0.95rem;
+  }
+
+  .brand p {
+    display: none;
+  }
+
+  .new-session-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .section-label {
+    font-size: 0.64rem;
+  }
+
+  .session-item {
+    min-width: 190px;
+    max-width: 220px;
+  }
+
+  .session-name {
+    font-size: 0.8rem;
+  }
+
+  .session-meta {
+    font-size: 0.68rem;
+  }
+
+  .workspace {
+    min-height: 0;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+    gap: var(--space-1);
+    min-height: auto;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .topbar h2 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: clamp(1.15rem, 7vw, 1.7rem);
+    line-height: 1.05;
+  }
+
+  .connection-pill {
+    min-width: 0;
+    padding: 6px var(--space-1);
+    font-size: 0.64rem;
+  }
+
+  .response-panel {
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .empty-state {
+    align-content: start;
+    padding-top: var(--space-4);
+  }
+
+  .empty-state h3 {
+    font-size: clamp(2rem, 12vw, 3.1rem);
+  }
+
+  .empty-state p {
+    font-size: 0.92rem;
+  }
+
+  .chat-thread {
+    gap: var(--space-3);
+  }
+
+  .chat-message.assistant {
+    padding-top: var(--space-2);
+  }
+
+  .chat-message.user {
+    align-items: stretch;
+  }
+
+  .chat-message.user .message-body {
+    max-width: 100%;
+  }
+
+  .message-body {
+    font-size: 0.96rem;
+  }
+
+  .sources {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+  }
+
+  .source-card {
+    padding: 12px;
+  }
+
+  .activity-panel {
+    min-height: 72px;
+    max-height: 92px;
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+  }
+
+  .activity-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+  }
+
+  .activity-item {
+    flex: 0 0 auto;
+    max-width: 260px;
+  }
+
+  .activity-item span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .composer {
     grid-template-columns: 1fr;
+    gap: var(--space-1);
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+  }
+
+  .composer textarea {
+    min-height: 48px;
+    max-height: 104px;
+    font-size: 16px;
+    line-height: 1.5;
   }
 
   .composer button {
     width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  .sidebar {
+    max-height: 180px;
+  }
+
+  .brand-mark {
+    display: none;
+  }
+
+  .session-item {
+    min-width: 168px;
+  }
+
+  .topbar,
+  .response-panel,
+  .activity-panel,
+  .composer {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .brand p,
+  .eyebrow,
+  .section-label,
+  .message-label,
+  .source-tag,
+  .activity-tag,
+  .new-session-button,
+  .composer button,
+  .connection-pill {
+    letter-spacing: 1px;
   }
 }

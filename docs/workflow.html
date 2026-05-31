@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Rabbit Hole Workflow</title>
+    <link rel="stylesheet" href="./workflow.css" />
+  </head>
+  <body>
+    <main class="viewport">
+      <section class="diagram-shell" id="diagramShell" aria-label="The Rabbit Hole technical workflow">
+        <header class="diagram-header">
+          <div>
+            <p class="eyebrow">The Rabbit Hole</p>
+            <h1>AI Agent Workflow</h1>
+          </div>
+          <div class="status-panel">
+            <span class="status-dot"></span>
+            <span id="statusText">initializing workflow trace</span>
+          </div>
+        </header>
+
+        <div class="board" id="board">
+          <svg class="connections" id="connections" viewBox="0 0 1500 820" aria-hidden="true"></svg>
+          <div class="lane-label lane-client">client</div>
+          <div class="lane-label lane-api">fastapi service</div>
+          <div class="lane-label lane-agent">agent core</div>
+          <div class="lane-label lane-data">data + external systems</div>
+          <div id="nodes"></div>
+          <aside class="trace-panel">
+            <h2>trace</h2>
+            <ol id="traceList"></ol>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <script src="./workflow.js"></script>
+  </body>
+</html>

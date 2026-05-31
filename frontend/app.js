@@ -1,12 +1,14 @@
-const API_BASE = localStorage.getItem("rabbitHoleApiBase") || "http://127.0.0.1:8000";
+const API_BASE =
+  localStorage.getItem("rabbitHoleApiBase") ||
+  window.RABBIT_HOLE_CONFIG?.API_BASE ||
+  "http://127.0.0.1:8000";
 
 const sessionList = document.querySelector("#sessionList");
 const sessionTitle = document.querySelector("#sessionTitle");
 const connectionStatus = document.querySelector("#connectionStatus");
 const responsePanel = document.querySelector("#responsePanel");
 const emptyState = document.querySelector("#emptyState");
-const userPrompt = document.querySelector("#userPrompt");
-const answer = document.querySelector("#answer");
+const chatThread = document.querySelector("#chatThread");
 const sources = document.querySelector("#sources");
 const activityList = document.querySelector("#activityList");
 const exploreForm = document.querySelector("#exploreForm");
@@ -20,6 +22,7 @@ let responseText = "";
 let currentQuery = "";
 let renderQueued = false;
 let streamFinished = false;
+let activeAssistantMessage = null;
 
 function setStatus(label, state = "idle") {
   connectionStatus.textContent = label;
@@ -34,6 +37,45 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function decodeHtml(value) {
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = String(value || "");
+  return textarea.value;
+}
+
+function buildPromptTitle(query) {
+  let titleSeed = query.replace(/[?.!]+$/g, "").trim();
+  const howToMatch = titleSeed.match(/\bhow to use\s+(.+?)(?:\s+on\s+.+)?$/i);
+  const aboutMatch = titleSeed.match(/\b(?:about|on|related to)\s+(.+)$/i);
+
+  if (howToMatch) {
+    titleSeed = howToMatch[1];
+  } else if (aboutMatch) {
+    titleSeed = aboutMatch[1];
+  }
+
+  const cleaned = titleSeed
+    .replace(/[?.!]+$/g, "")
+    .replace(/\b(can you|could you|please|kindly|explain me|explain|tell me|give me|suggest|provide|show me|find|search|what is|who is|how to use|i want|i need|to explore|explore more|explore)\b/gi, " ")
+    .replace(/\b(videos?|podcasts?|books?|articles?|papers?|lectures?|documentaries?|talks?|recommendations?|sources?|commands?|important|using|used|related to|on it|about it|and|with|for|me|some|more|in|it)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const fallback = query
+    .replace(/[?.!]+$/g, "")
+    .split(/\s+/)
+    .slice(0, 6)
+    .join(" ");
+
+  const title = cleaned || fallback || "Untitled session";
+
+  return title
+    .split(" ")
+    .slice(0, 8)
+    .join(" ")
+    .replace(/^./, (char) => char.toUpperCase());
 }
 
 function renderMarkdown(text) {
@@ -65,7 +107,10 @@ function renderMarkdown(text) {
 
 function showAnswer() {
   emptyState.style.display = "none";
-  answer.innerHTML = renderMarkdown(responseText);
+  if (activeAssistantMessage) {
+    activeAssistantMessage.classList.remove("thinking");
+    activeAssistantMessage.innerHTML = renderMarkdown(responseText);
+  }
   responsePanel.scrollTop = responsePanel.scrollHeight;
 }
 
@@ -87,19 +132,43 @@ function clearWorkspace() {
   currentQuery = "";
   renderQueued = false;
   streamFinished = false;
-  answer.innerHTML = "";
+  activeAssistantMessage = null;
+  chatThread.innerHTML = "";
   sources.innerHTML = "";
   activityList.innerHTML = "";
-  userPrompt.hidden = true;
-  userPrompt.textContent = "";
   emptyState.style.display = "";
+}
+
+function appendMessage(role, content = "") {
+  emptyState.style.display = "none";
+
+  const message = document.createElement("article");
+  message.className = `chat-message ${role}`;
+
+  const label = document.createElement("div");
+  label.className = "message-label";
+  label.textContent = role === "user" ? "You" : "The Rabbit Hole";
+
+  const body = document.createElement("div");
+  body.className = "message-body";
+
+  if (role === "assistant") {
+    body.innerHTML = renderMarkdown(content);
+  } else {
+    body.textContent = content;
+  }
+
+  message.appendChild(label);
+  message.appendChild(body);
+  chatThread.appendChild(message);
+  responsePanel.scrollTop = responsePanel.scrollHeight;
+
+  return body;
 }
 
 function showUserPrompt(query) {
   currentQuery = query;
-  userPrompt.textContent = query;
-  userPrompt.hidden = false;
-  emptyState.style.display = "none";
+  appendMessage("user", query);
 }
 
 function addActivity(type, payload) {
@@ -153,10 +222,10 @@ function renderSources(sourceList) {
     const card = document.createElement("article");
     card.className = "source-card";
 
-    const title = escapeHtml(source.title || "Untitled source");
-    const provider = escapeHtml(source.provider || "source");
-    const sourceType = escapeHtml(source.source_type || "web");
-    const summary = source.summary ? escapeHtml(source.summary) : "";
+    const title = escapeHtml(decodeHtml(source.title || "Untitled source"));
+    const provider = escapeHtml(decodeHtml(source.provider || "source"));
+    const sourceType = escapeHtml(decodeHtml(source.source_type || "web"));
+    const summary = source.summary ? escapeHtml(decodeHtml(source.summary)) : "";
     const url = source.url ? escapeHtml(source.url) : "";
 
     card.innerHTML = `
@@ -236,14 +305,15 @@ function renderSessions(sessions) {
     const openButton = document.createElement("button");
     openButton.type = "button";
     openButton.className = "session-open";
+    const displayTitle = buildPromptTitle(session.title || "Untitled session");
     openButton.innerHTML = `
-      <div class="session-name">${escapeHtml(session.title || "Untitled session")}</div>
+      <div class="session-name">${escapeHtml(displayTitle)}</div>
       <div class="session-meta">${session.message_count || 0} messages</div>
     `;
 
     openButton.addEventListener("click", () => {
       activeSessionId = session.session_id;
-      sessionTitle.textContent = session.title || "Untitled session";
+      sessionTitle.textContent = displayTitle;
       clearWorkspace();
       loadHistory(session.session_id);
       renderSessions(sessions);
@@ -305,21 +375,18 @@ async function loadHistory(sessionId) {
     }
 
     const messages = await response.json();
-    const lastAssistant = [...messages]
-      .reverse()
-      .find((message) => message.role === "assistant");
+    chatThread.innerHTML = "";
+    emptyState.style.display = messages.length ? "none" : "";
 
-    if (lastAssistant) {
-      responseText = lastAssistant.content;
-      showAnswer();
-    }
+    for (const message of messages) {
+      if (message.role === "user") {
+        appendMessage("user", message.content);
+        currentQuery = message.content;
+      }
 
-    const lastUser = [...messages]
-      .reverse()
-      .find((message) => message.role === "user");
-
-    if (lastUser) {
-      showUserPrompt(lastUser.content);
+      if (message.role === "assistant") {
+        appendMessage("assistant", message.content);
+      }
     }
   } catch {
     addActivity("error", { message: "History unavailable" });
@@ -328,8 +395,24 @@ async function loadHistory(sessionId) {
 
 function startExploration(query) {
   closeActiveStream();
-  clearWorkspace();
   showUserPrompt(query);
+  activeAssistantMessage = appendMessage("assistant", "");
+  activeAssistantMessage.classList.add("thinking");
+  activeAssistantMessage.innerHTML = `
+    <span class="thinking-indicator">
+      <span>Thinking</span>
+      <span class="thinking-dots" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
+    </span>
+  `;
+  responseText = "";
+  sources.innerHTML = "";
+  activityList.innerHTML = "";
+  renderQueued = false;
+  streamFinished = false;
   setStatus("Streaming", "busy");
   submitButton.disabled = true;
   queryInput.disabled = true;
@@ -413,7 +496,7 @@ exploreForm.addEventListener("submit", (event) => {
   }
 
   if (!activeSessionId) {
-    sessionTitle.textContent = query;
+    sessionTitle.textContent = buildPromptTitle(query);
   }
 
   queryInput.value = "";

@@ -33,7 +33,7 @@ from app.db.history import save_tool_call
 from app.db.sessions import create_session, get_session
 from app.models.conversation import MessageRole
 from app.models.tool import Source, ToolResult
-from app.services.exploration import build_history_context, collect_sources
+from app.services.exploration import build_history_context, build_session_title, collect_sources
 from app.services.memory import count_tokens, load_session_history, store_message
 
 
@@ -197,7 +197,7 @@ async def stream_exploration(
         )
         
         if session_id is None:
-            session = await create_session(title=query[:80])
+            session = await create_session(title=build_session_title(query))
             session_id = session["session_id"]
         
         else:

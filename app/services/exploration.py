@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from app.agent.agent import run_agent
@@ -15,6 +16,44 @@ from app.db.history import save_tool_call
 from app.models.conversation import ExploreResponse, MessageRole, ToolCallRecord
 from app.services.memory import count_tokens, load_session_history, store_message
 from app.models.tool import ToolResult, Source
+
+
+def build_session_title(query: str) -> str:
+    title = re.sub(r"[?.!]+$", "", query).strip()
+    how_to_match = re.search(
+        r"\bhow to use\s+(.+?)(?:\s+on\s+.+)?$",
+        title,
+        flags=re.IGNORECASE,
+    )
+    about_match = re.search(
+        r"\b(?:about|on|related to)\s+(.+)$",
+        title,
+        flags=re.IGNORECASE,
+    )
+
+    if how_to_match:
+        title = how_to_match.group(1)
+    elif about_match:
+        title = about_match.group(1)
+
+    title = re.sub(
+        r"\b(can you|could you|please|kindly|explain me|explain|tell me|give me|suggest|provide|show me|find|search|what is|who is|how to use|i want|i need|to explore|explore more|explore)\b",
+        " ",
+        title,
+        flags=re.IGNORECASE,
+    )
+    title = re.sub(
+        r"\b(videos?|podcasts?|books?|articles?|papers?|lectures?|documentaries?|talks?|recommendations?|sources?|commands?|important|using|used|related to|on it|about it|and|with|for|me|some|more|in|it)\b",
+        " ",
+        title,
+        flags=re.IGNORECASE,
+    )
+    title = re.sub(r"\s+", " ", title).strip()
+
+    if not title:
+        title = " ".join(query.split()[:6]) or "Untitled session"
+
+    return " ".join(title.split()[:8]).capitalize()
 
 def build_history_context(history: list[dict]) -> str:
     if not history:
@@ -74,7 +113,7 @@ async def explore_topic(
 ) -> ExploreResponse:
     
     if session_id is None:
-        session = await create_session(title=query[:80])
+        session = await create_session(title=build_session_title(query))
         session_id = session["session_id"]
         
     else:

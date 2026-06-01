@@ -196,8 +196,8 @@ h1 {
 
 .node {
   position: absolute;
-  width: 164px;
-  min-height: 76px;
+  width: 190px;
+  min-height: 84px;
   padding: 16px 16px 14px;
   border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 97%, transparent), color-mix(in srgb, var(--bg) 98%, transparent));
@@ -242,7 +242,7 @@ h1 {
 }
 
 .node.error {
-  width: 150px;
+  width: 156px;
   min-height: 64px;
   border-color: color-mix(in srgb, var(--accent) 64%, transparent);
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent), color-mix(in srgb, var(--bg) 98%, transparent));
@@ -283,15 +283,15 @@ h1 {
 }
 
 .lane-input {
-  top: 34px;
+  top: 42px;
 }
 
 .lane-core {
-  top: 230px;
+  top: 276px;
 }
 
 .lane-output {
-  top: 520px;
+  top: 550px;
 }
 
 .board::before,
@@ -306,11 +306,11 @@ h1 {
 }
 
 .board::before {
-  top: 178px;
+  top: 214px;
 }
 
 .board::after {
-  top: 482px;
+  top: 496px;
 }
 
 .error-rail,
@@ -322,7 +322,7 @@ h1 {
 
 .error-rail {
   right: 18px;
-  top: 104px;
+  top: 250px;
   width: 190px;
   height: 224px;
   padding: 12px;
@@ -331,7 +331,7 @@ h1 {
 .trace-panel {
   right: 18px;
   bottom: 12px;
-  width: 280px;
+  width: 252px;
   height: 150px;
   padding: 12px;
   overflow: hidden;

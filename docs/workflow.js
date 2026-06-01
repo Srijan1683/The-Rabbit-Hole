@@ -6,72 +6,59 @@ const traceList = document.getElementById("traceList");
 const resetButton = document.getElementById("resetButton");
 
 const nodes = [
-  ["user", "User Prompt", "topic, follow-up, intent", 62, 52],
-  ["frontend", "Frontend Chat UI", "sessions, prompt, live response", 265, 52],
-  ["routes", "FastAPI Routes", "/explore, /explore/stream, /sessions", 468, 52, "core"],
+  ["ui", "User + Frontend", "prompt, sessions, mobile UI, live output", 80, 76],
+  ["api", "FastAPI Gateway", "routes, CORS, SSE entrypoints", 320, 76, "core"],
+  ["memory", "Session Memory", "history, token counts, Postgres state", 560, 76, "data"],
 
-  ["memory", "Session + Memory", "Postgres history + message storage", 92, 252, "data"],
-  ["context", "Token Context", "budget, truncation, selected history", 295, 252, "core"],
-  ["agent", "Agent Core", "prompt rules, planning, response shape", 498, 252, "core"],
-  ["tools", "Tool System", "registry, cache, rate limit, APIs", 701, 252, "external"],
+  ["agent", "Agent Core", "tool choice, prompts, context budget", 190, 306, "core"],
+  ["tools", "Tool Layer", "cache, rate limits, external APIs", 460, 306, "external"],
+  ["model", "OpenRouter Model", "source-aware synthesis", 730, 306, "external"],
 
-  ["model", "OpenRouter Model", "final synthesis + source-aware answer", 295, 522, "external"],
-  ["stream", "SSE Streaming", "thinking, tool_call, content, done", 498, 522, "core"],
-  ["storage", "Postgres Record", "sessions, messages, tools, cache", 701, 522, "data"],
-
-  ["cacheHit", "Cache Hit", "skip duplicate API calls", 790, 136, "data"],
-  ["handled", "Handled Error", "safe fallback, retry, or skip", 805, 382, "error"],
+  ["output", "Stream + Storage", "SSE response, sources, saved records", 430, 532, "data"],
+  ["handled", "Handled Failure", "retry, skip, fallback", 820, 136, "error"],
 ];
 
 const edges = [
-  ["user", "frontend"],
-  ["frontend", "routes"],
-  ["routes", "memory"],
-  ["memory", "context"],
-  ["context", "agent"],
+  ["ui", "api"],
+  ["api", "memory"],
+  ["memory", "agent"],
   ["agent", "tools"],
   ["tools", "agent"],
   ["agent", "model"],
-  ["model", "stream"],
-  ["stream", "frontend"],
-  ["model", "storage"],
-  ["tools", "storage"],
-  ["memory", "storage"],
-  ["tools", "cacheHit"],
-  ["cacheHit", "agent"],
-  ["routes", "handled", "error"],
+  ["model", "output"],
+  ["output", "ui"],
+  ["memory", "output"],
+  ["tools", "output"],
+  ["api", "handled", "error"],
   ["tools", "handled", "error"],
   ["model", "handled", "error"],
-  ["stream", "handled", "error"],
+  ["output", "handled", "error"],
   ["handled", "agent", "error"],
 ];
 
 const normalFlow = [
-  ["user", "frontend", "user enters a topic or follow-up prompt"],
-  ["frontend", "routes", "frontend sends request to FastAPI"],
-  ["routes", "memory", "backend resolves session and stores user message"],
-  ["memory", "context", "history is loaded and measured"],
-  ["context", "agent", "agent receives only the safe context window"],
-  ["agent", "tools", "agent selects relevant research tools"],
+  ["ui", "api", "user submits a topic from the frontend"],
+  ["api", "memory", "backend resolves session and loads history"],
+  ["memory", "agent", "agent receives selected context and token budget"],
+  ["agent", "tools", "agent chooses relevant research tools"],
   ["tools", "agent", "structured sources return to the agent"],
-  ["agent", "model", "agent asks the model to synthesize the response"],
-  ["model", "stream", "response streams as SSE events"],
-  ["stream", "frontend", "frontend renders the live answer"],
-  ["model", "storage", "assistant response is stored"],
-  ["tools", "storage", "tool calls, cache, and usage are logged"],
+  ["agent", "model", "model synthesizes the final answer"],
+  ["model", "output", "answer, sources, and metadata are finalized"],
+  ["output", "ui", "SSE stream updates the frontend"],
+  ["memory", "output", "session history is kept as durable state"],
+  ["tools", "output", "tool calls, cache, and usage are stored"],
 ];
 
 const cacheFlow = [
   ["agent", "tools", "agent requests supporting sources"],
-  ["tools", "cacheHit", "cached response is found"],
-  ["cacheHit", "agent", "cached tool result returns immediately"],
+  ["tools", "agent", "cached tool results return without another API call"],
 ];
 
 const errorFlow = [
   ["tools", "handled", "API failure or throttling becomes a safe tool result"],
   ["model", "handled", "model rate limit triggers retry/backoff"],
-  ["stream", "handled", "client disconnect stops unnecessary work"],
-  ["routes", "handled", "database startup failure is surfaced early"],
+  ["output", "handled", "client disconnect stops unnecessary work"],
+  ["api", "handled", "database or request failure is surfaced early"],
   ["handled", "agent", "agent continues with fallback context when possible"],
 ];
 
@@ -97,8 +84,8 @@ function createNodes() {
 
 function point(id) {
   const node = nodeMap.get(id);
-  const width = node.type === "error" ? 150 : 164;
-  return { x: node.x + width / 2, y: node.y + 38 };
+  const width = node.type === "error" ? 156 : 190;
+  return { x: node.x + width / 2, y: node.y + 42 };
 }
 
 function makePath(from, to) {
@@ -106,6 +93,14 @@ function makePath(from, to) {
   const b = point(to);
   const dx = Math.abs(b.x - a.x);
   const dy = Math.abs(b.y - a.y);
+
+  if (from === "model" && to === "handled") {
+    return `M ${a.x} ${a.y} C ${a.x + 90} ${a.y - 110}, ${b.x + 90} ${b.y - 105}, ${b.x} ${b.y}`;
+  }
+
+  if (from === "handled" && to === "agent") {
+    return `M ${a.x} ${a.y} C ${a.x - 155} ${a.y + 130}, ${b.x + 155} ${b.y + 130}, ${b.x} ${b.y}`;
+  }
 
   if (dy < 70) {
     const bend = Math.max(60, Math.min(150, dx * 0.45));

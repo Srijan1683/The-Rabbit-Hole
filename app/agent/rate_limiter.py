@@ -1,5 +1,5 @@
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 
 from httpx import Headers
@@ -30,13 +30,13 @@ def _parse_reset_time(value: str| None) -> datetime | None:
     
     try:
         reset_seconds = int(value)
-        return datetime.now(timezone.utc) + timedelta(seconds=reset_seconds)
+        return datetime.now(UTC) + timedelta(seconds=reset_seconds)
     except ValueError:
         pass
     
     try:
         parsed = parsedate_to_datetime(value)
-        return parsed.astimezone(timezone.utc)
+        return parsed.astimezone(UTC)
     except (TypeError, ValueError):
         return None
 
@@ -55,7 +55,7 @@ def _parse_retry_after(headers: Headers) -> int | None:
         if reset_at is None:
             return None
         
-        seconds = int((reset_at - datetime.now(timezone.utc)).total_seconds())
+        seconds = int((reset_at - datetime.now(UTC)).total_seconds())
         return max(seconds,0)
 
     
@@ -79,8 +79,8 @@ def mark_rate_limited(
     api_name: str, 
     cooldown_seconds: int = DEFAULT_COOLDOWN_SECONDS,
 ) -> None:
-    reset_at = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
-    _api_cooldowns[api_name] = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
+    reset_at = datetime.now(UTC) + timedelta(seconds=cooldown_seconds)
+    _api_cooldowns[api_name] = datetime.now(UTC) + timedelta(seconds=cooldown_seconds)
     _api_reset_time[api_name] = reset_at
     _api_remaining[api_name] = 0
 
@@ -121,7 +121,7 @@ def is_rate_limited(api_name: str) -> bool:
     if reset_at is None:
         return False
     
-    if reset_at <= datetime.now(timezone.utc):
+    if reset_at <= datetime.now(UTC):
         _api_cooldowns.pop(api_name, None)
         return False
     
@@ -141,7 +141,7 @@ def get_all_rate_limit_statuses() -> list[RateLimitStatus]:
     return [get_rate_limit_status(api_name) for api_name in EXTERNAL_APIS]
 
 def clear_expired_cooldowns() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     
     expired = [
         api_name

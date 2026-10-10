@@ -1,5 +1,6 @@
-import asyncpg
 import os
+
+import asyncpg
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,7 +17,6 @@ async def create_pool():
     print("Database pool created")
     
 async def close_pool():
-    global pool
     if pool is not None:
         await pool.close()
     print("Database pool closed")

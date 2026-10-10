@@ -4,18 +4,18 @@ import uuid
 from app.agent.agent import run_agent
 from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.token_manager import (
-    build_token_budget, 
+    build_token_budget,
     count_messages_tokens,
     get_context_window,
     select_history_for_context,
 )
 from app.core.config import settings
 from app.core.errors import NotFoundError
-from app.db.sessions import create_session, get_session
 from app.db.history import save_tool_call
+from app.db.sessions import create_session, get_session
 from app.models.conversation import ExploreResponse, MessageRole, ToolCallRecord
+from app.models.tool import Source, ToolResult
 from app.services.memory import count_tokens, load_session_history, store_message
-from app.models.tool import ToolResult, Source
 
 
 def build_session_title(query: str) -> str:

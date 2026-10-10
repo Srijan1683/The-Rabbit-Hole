@@ -1,12 +1,13 @@
-from datetime import datetime, timedelta, timezone
-import httpx
 import re
-
-from app.db.cache import get_cached_response, make_cache_key, save_cached_response
-from app.models.tool import Source, ToolResult
-from app.db.history import save_api_usage
-from app.agent.rate_limiter import update_rate_limit_from_headers
 import time
+from datetime import UTC, datetime, timedelta
+
+import httpx
+
+from app.agent.rate_limiter import update_rate_limit_from_headers
+from app.db.cache import get_cached_response, make_cache_key, save_cached_response
+from app.db.history import save_api_usage
+from app.models.tool import Source, ToolResult
 
 WIKIPEDIA_HEADERS = {
     "User-Agent": "TheRabbitHole/0.1 (https://github.com/Srijan1683/The-Rabbit-Hole)",
@@ -78,7 +79,7 @@ async def get_wikipedia_summary(query: str) -> ToolResult:
         api_name="wikipedia",
         query=query,
         response_data=result,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
 
     source = Source(
@@ -179,7 +180,7 @@ async def search_wikipedia(query: str, limit: int = 5) -> ToolResult:
         api_name="wikipedia",
         query=query,
         response_data=cache_payload,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        expires_at=datetime.now(UTC) + timedelta(hours=24)
     )
     
     sources = [

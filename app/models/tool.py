@@ -4,7 +4,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-
 SourceProvider = Literal[
     "wikipedia",
     "open_library",

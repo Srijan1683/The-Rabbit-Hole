@@ -6,20 +6,18 @@ import re
 import httpx
 from openai import AsyncOpenAI
 
-from app.core.config import settings
 from app.agent.prompts import SYSTEM_PROMPT
-
 from app.agent.rate_limiter import (
     calculate_backoff_seconds,
     is_rate_limited,
     mark_api_success,
     mark_rate_limited,
 )
-
 from app.agent.registry import format_tool_catalog, get_tool, list_tool_specs
-from app.models.tool import ToolResult
-from app.core.logging import get_logger
 from app.agent.token_manager import truncate_text_to_tokens
+from app.core.config import settings
+from app.core.logging import get_logger
+from app.models.tool import ToolResult
 
 TOOL_API_NAMES = {
     spec.name: spec.api_name
@@ -288,7 +286,7 @@ async def run_research_tools(query: str, tool_names: list[str]) -> list[ToolResu
                 logger.warning("Tool %s failed: %s", tool_name, exc)
                 break
                 
-            except Exception as exc:
+            except Exception:
                 logger.exception("Tool %s failed unexpectedly", tool_name)
                 break
         

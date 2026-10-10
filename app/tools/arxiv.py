@@ -1,13 +1,13 @@
-from datetime import datetime, timedelta, timezone
+import time
 import xml.etree.ElementTree as ET
+from datetime import UTC, datetime, timedelta
 
 import httpx
-import time
 
-from app.db.cache import get_cached_response, make_cache_key, save_cached_response
-from app.models.tool import Source, ToolResult
-from app.db.history import save_api_usage
 from app.agent.rate_limiter import update_rate_limit_from_headers
+from app.db.cache import get_cached_response, make_cache_key, save_cached_response
+from app.db.history import save_api_usage
+from app.models.tool import Source, ToolResult
 
 ARXIV_SEARCH_URL = "https://export.arxiv.org/api/query"
 
@@ -122,7 +122,7 @@ async def search_papers(query: str, limit: int = 5) -> ToolResult:
         api_name="arxiv",
         query=query,
         response_data=cache_payload,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     
     sources = [

@@ -1,5 +1,5 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable
 
 from app.models.tool import ToolResult
 from app.tools.arxiv import search_papers
@@ -7,7 +7,6 @@ from app.tools.open_library import search_books
 from app.tools.podcast_index import search_podcasts
 from app.tools.wikipedia import get_wikipedia_summary, search_wikipedia
 from app.tools.youtube import search_videos
-
 
 ToolFunction = Callable[..., Awaitable[ToolResult]]
 

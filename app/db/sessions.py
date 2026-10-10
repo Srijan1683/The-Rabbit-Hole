@@ -1,5 +1,6 @@
-from .pool import get_pool
 import uuid
+
+from .pool import get_pool
 
 
 def _get_pool():

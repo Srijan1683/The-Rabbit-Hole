@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
+from app.agent.rate_limiter import get_all_rate_limit_statuses
 from app.agent.registry import list_tool_names
 from app.models.token import RateLimitStatus
-from app.agent.rate_limiter import get_all_rate_limit_statuses
 
 router = APIRouter(tags=["admin"])
 

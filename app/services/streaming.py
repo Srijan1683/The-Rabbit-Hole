@@ -2,14 +2,15 @@ import asyncio
 import json
 import time
 import uuid
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import httpx
+from openai import APIError
 
 from app.agent.agent import (
     TOOL_API_NAMES,
-    choose_tools_with_model,
     choose_tools_for_query,
+    choose_tools_with_model,
     format_tool_results,
     get_openai_client,
     resolve_tool_query,
@@ -29,13 +30,17 @@ from app.agent.token_manager import (
     select_history_for_context,
 )
 from app.core.config import settings
+from app.core.errors import RabbitHoleError
 from app.db.history import save_tool_call
 from app.db.sessions import create_session, get_session
 from app.models.conversation import MessageRole
 from app.models.tool import Source, ToolResult
-from app.services.exploration import build_history_context, build_session_title, collect_sources
+from app.services.exploration import (
+    build_history_context,
+    build_session_title,
+    collect_sources,
+)
 from app.services.memory import count_tokens, load_session_history, store_message
-
 
 
 def format_sse_event(event: str, data: dict) -> dict:
@@ -133,7 +138,7 @@ async def run_streaming_tools(
                 )
                 break
             
-            except Exception as exc:
+            except httpx.HTTPError as exc:
                 yield (
                     "tool_result",
                     {
@@ -179,7 +184,7 @@ async def stream_model_response(
             if delta:
                 yield delta
 
-    except Exception as exc:
+    except (APIError, httpx.HTTPError) as exc:
         yield f"\n\nThe model stream stopped before completion: {exc}"
 
     
@@ -338,7 +343,7 @@ async def stream_exploration(
             },
         )
 
-    except Exception as exc:
+    except RabbitHoleError as exc:
         yield format_sse_event(
             "error",
             {

@@ -2,10 +2,10 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.db.sessions import create_session, delete_session, get_session, list_sessions
 from app.db.history import get_history, get_tool_calls_for_session
-from app.models.session import Session, SessionCreate, SessionList
+from app.db.sessions import create_session, delete_session, get_session, list_sessions
 from app.models.conversation import Message
+from app.models.session import Session, SessionCreate, SessionList
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 

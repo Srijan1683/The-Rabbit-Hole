@@ -1,15 +1,14 @@
-from datetime import datetime, timedelta, timezone
 import hashlib
 import time
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from app.agent.rate_limiter import update_rate_limit_from_headers
 from app.core.config import settings
 from app.db.cache import get_cached_response, make_cache_key, save_cached_response
-from app.models.tool import Source, ToolResult
 from app.db.history import save_api_usage
-from app.agent.rate_limiter import update_rate_limit_from_headers
-
+from app.models.tool import Source, ToolResult
 
 PODCAST_INDEX_SEARCH_URL = "https://api.podcastindex.org/api/1.0/search/byterm"
 
@@ -130,7 +129,7 @@ async def search_podcasts(query: str, limit: int = 5) -> ToolResult:
         api_name="podcast_index",
         query=query,
         response_data=cache_payload,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=6),
+        expires_at=datetime.now(UTC) + timedelta(hours=6),
     )
 
     sources = [

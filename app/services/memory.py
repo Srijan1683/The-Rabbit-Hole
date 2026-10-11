@@ -1,9 +1,11 @@
 import uuid
+
 import tiktoken
 
 from app.core.config import settings
 from app.db.history import get_history, save_message
 from app.models.conversation import MessageRole
+
 
 def count_tokens(text: str, model: str | None = None) -> int:
     model_name = model or settings.openai_model

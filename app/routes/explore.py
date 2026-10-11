@@ -3,10 +3,10 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query
 from sse_starlette.sse import EventSourceResponse
 
+from app.core.errors import NotFoundError
 from app.models.conversation import ExploreRequest, ExploreResponse
 from app.services.exploration import explore_topic
 from app.services.streaming import stream_exploration
-from app.core.errors import NotFoundError
 
 router = APIRouter(tags=["explore"])
 

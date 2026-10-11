@@ -3,11 +3,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db.pool import close_pool, create_pool
-from app.routes.sessions import router as sessions_router
-from app.routes.explore import router as explore_router
-from app.routes.admin import router as admin_router
 from app.core.logging import setup_logging
+from app.db.pool import close_pool, create_pool
+from app.routes.admin import router as admin_router
+from app.routes.explore import router as explore_router
+from app.routes.sessions import router as sessions_router
 
 setup_logging()
 

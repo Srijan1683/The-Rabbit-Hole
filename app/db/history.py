@@ -1,9 +1,12 @@
 import json
-from .pool import get_pool
 import uuid
-from app.models.conversation import MessageRole
-from typing import Any
 from datetime import datetime
+from typing import Any
+
+from app.models.conversation import MessageRole
+
+from .pool import get_pool
+
 
 def _get_pool():
     pool = get_pool()

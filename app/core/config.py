@@ -22,6 +22,9 @@ class Settings:
     postgres_db: str | None
     
 
+_settings: Settings | None = None
+
+
 def _required_env(name: str) -> str:
     value = os.getenv(name)
     
@@ -30,7 +33,9 @@ def _required_env(name: str) -> str:
     return value
 
 def get_settings() -> Settings:
-    return Settings(
+    global _settings
+    if _settings is None:
+        _settings = Settings(
         database_url=_required_env("DATABASE_URL"),
         openai_api_key=_required_env("OPENAI_API_KEY"),
         openai_base_url=os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1"),
@@ -40,7 +45,8 @@ def get_settings() -> Settings:
         youtube_api_key=os.getenv("YOUTUBE_API_KEY"),
         postgres_password=os.getenv("POSTGRES_PASSWORD"),
         postgres_db=os.getenv("POSTGRES_DB"),
-    )
-    
+        )
+    return _settings
+
 
 settings = get_settings()

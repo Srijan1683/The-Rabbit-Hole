@@ -35,3 +35,13 @@ jobs:
 
       - name: Test
         run: python -m pytest
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build-image
+      - run: docker build -t rabbit-hole:ci .

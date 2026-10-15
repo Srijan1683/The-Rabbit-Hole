@@ -42,6 +42,5 @@ jobs:
     needs: lint-and-test
     steps:
       - uses: actions/checkout@v4
-
-      - name: build-image
-      - run: docker build -t rabbit-hole:ci .
+      - name: Build image
+        run: docker build -t rabbit-hole:ci .

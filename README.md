@@ -202,6 +202,40 @@ Backend secrets are kept on Render. The frontend only stores the public backend 
 
 ---
 
+## DevOps Automation
+
+GitHub Actions validates every pull request and every push to `main`. The CI workflow runs on Python 3.12 and:
+
+1. Installs application and development dependencies.
+2. Runs `ruff` across the repository.
+3. Runs the `pytest` test suite.
+4. Builds the Docker image after the lint and test job succeeds.
+
+The CD workflow builds the production container image and scans it with Trivy for unfixed `HIGH` and `CRITICAL` vulnerabilities. The scan runs for pull requests and pushes to `main`, so a vulnerable image prevents the workflow from succeeding before publication.
+
+On pushes to `main`, the workflow publishes a multi-architecture (`linux/amd64` and `linux/arm64`) image to GitHub Container Registry (GHCR):
+
+```text
+ghcr.io/<repository-owner>/<repository-name>:latest
+ghcr.io/<repository-owner>/<repository-name>:<commit-sha>
+```
+
+Pull requests build and scan the image but never log in to GHCR or publish an image. GitHub Actions cache storage is used to accelerate repeat Docker builds, and in-progress CI runs for the same Git reference are cancelled when a newer run starts.
+
+### Dependency Updates
+
+Dependabot checks weekly for updates to Python packages, Docker base images, and GitHub Actions. It opens up to three concurrent Python dependency pull requests.
+
+### Workflows
+
+| File | Responsibility |
+| --- | --- |
+| `.github/workflows/ci.yml` | Linting, tests, and a Docker build verification |
+| `.github/workflows/cd.yml` | Container build, Trivy vulnerability scan, and GHCR publishing from `main` |
+| `.github/dependabot.yml` | Weekly dependency update pull requests |
+
+---
+
 ## License
 
 This project is all rights reserved. See `LICENSE`.

@@ -5,5 +5,5 @@ asyncpg>=0.32.0
 httpx>=0.28.1
 sse-starlette>=3.5.0
 tiktoken>=0.14.0
-pydantic>=2.9.0
+pydantic>=2.14.1
 python-dotenv>=1.2.4

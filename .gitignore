@@ -3,3 +3,11 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+/infra/terraform/rabbit-hole-config

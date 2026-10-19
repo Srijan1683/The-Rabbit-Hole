@@ -10,3 +10,4 @@ __pycache__/
 *.tfstate.*
 crash.log
 *.tfvars
+/infra/terraform/rabbit-hole-config

@@ -46,7 +46,7 @@ jobs:
       - name: Plan
         run: |
           set -o pipefail
-          terraform plan -input=false -no-color tee plan.txt
+          terraform plan -input=false -no-color | tee plan.txt
 
       - name: Show plan in job summary
         if: always()
@@ -57,17 +57,17 @@ jobs:
             echo
             echo "~~~"
             cat plan.txt
-            echo "~~~""
+            echo "~~~"
           } >> "$GITHUB_STEP_SUMMARY"
 
   iac-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: action/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Scan Terraform with Trivy
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: infra/terraform

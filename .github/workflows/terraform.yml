@@ -1,0 +1,75 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+  
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "-> 1.9"
+          terraform_wrapper: false
+
+      - name: Format check
+        run: terraform fmt -check -recursive
+
+      - name: Init
+        run: terraform init -input=false -lockfile=readonly
+
+      - name: Validate
+        run: terraform validate
+
+      - name: Plan
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color | tee plan.txt
+
+      - name: Show plan in job summary
+        if: always()
+        run: |
+          test -f plan.txt || exit 0
+          {
+            echo "### Terraform plan"
+            echo
+            echo "~~~"
+            cat plan.txt
+            echo "~~~"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  iac-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan Terraform with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: infra/terraform
+          severity: CRITICAL,HIGH
+          exit-code: "1"

@@ -96,7 +96,7 @@ jobs:
           trap 'kill "$PF_PID" 2>/dev/null || true' EXIT
           curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-connrefused http://localhost:8000/health | tee health.json
           echo
-          jq -e '.status == "broken"' health.json
+          jq -e '.status == "ok"' health.json
           TABLES="$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" exec db-0 -- psql -U postgres -d "$POSTGRES_DB" -tAc "select count(*) from information_schema.tables where table_schema = 'public'")"
           echo "public tables: ${TABLES}"
           test "${TABLES}" -gt 0

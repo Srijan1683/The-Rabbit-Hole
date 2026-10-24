@@ -50,7 +50,7 @@ spec:
             - sh
             - -c
             - until pg_isready -h db -p 5432 -U postgres; do echo waiting for db; sleep 2; done
-      containerz:
+      containers:
         - name: app
           image: __IMAGE__
           ports:

@@ -1,0 +1,117 @@
+name: Kubernetes deploy test
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "migrations/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "k8s/**"
+      - "infra/terraform/**"
+      - ".github/workflows/k8s-deploy.yml"
+
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "migrations/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "k8s/**"
+      - "infra/terraform/**"
+      - ".github/workflows/k8s-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k8s-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KIND_VERSION: v0.31.0
+  KUBE_CONTEXT: kind-rabbit-hole
+  NAMESPACE: rabbit-hole
+  IMAGE: ghcr.io/srijan1683/the-rabbit-hole
+  POSTGRES_DB: rabbithole
+
+jobs:
+  deploy-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "~> 1.9"
+          terraform_wrapper: false
+
+      - name: Install kind CLI
+        run: |
+          curl -fsSL -o kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          chmod +x kind
+          sudo mv kind /usr/local/bin/kind
+          kind version
+          kubectl version --client
+
+      - name: Create cluster
+        working-directory: infra/terraform
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform apply -auto-approve -input=false
+
+      - name: Build image
+        run: docker build -t "${IMAGE}:ci" .
+
+      - name: Load image into the cluster
+        run: kind load docker-image "${IMAGE}:ci" --name rabbit-hole
+
+      - name: Create throwaway env file
+        run: |
+          PASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::${PASSWORD}"
+          {
+            echo "DATABASE_URL=unused"
+            echo "OPENAI_API_KEY=ci-fake-key"
+            echo "OPENAI_BASE_URL=https://openrouter.ai/api/v1"
+            echo "OPENAI_MODEL=openai/gpt-4o-mini"
+            echo "PODCAST_INDEX_API_KEY=ci-fake-key"
+            echo "PODCAST_INDEX_API_SECRET=ci-fake-secret"
+            echo "YOUTUBE_API_KEY=ci-fake-key"
+            echo "POSTGRES_PASSWORD=${PASSWORD}"
+            echo "POSTGRES_DB=${POSTGRES_DB}"
+          } > ci.env
+
+      - name: Deploy to Kubernetes
+        run: ENV_FILE=ci.env IMAGE_TAG=ci bash ./k8s/deploy.sh
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" port-forward svc/app 8000:8000 &
+          PF_PID=$!
+          trap 'kill "$PF_PID" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-connrefused http://localhost:8000/health | tee health.json
+          echo
+          jq -e '.status == "ok"' health.json
+          TABLES="$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" exec db-0 -- psql -U postgres -d "$POSTGRES_DB" -tAc "select count(*) from information_schema.tables where table_schema = 'public'")"
+          echo "public tables: ${TABLES}"
+          test "${TABLES}" -gt 0
+
+      - name: Show cluster state on failure
+        if: failure()
+        run: |
+          k() { kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" "$@"; }
+          k get pods,svc,pvc -o wide || true
+          k describe pods || true
+          k logs deploy/app --all-containers --tail=100 || true
+          k logs pod/db-0 --tail=100 || true
+          k get events --sort-by=.lastTimestamp || true
+
+      - name: Destroy cluster
+        if: always()
+        working-directory: infra/terraform
+        run: terraform destroy -auto-approve -input=false

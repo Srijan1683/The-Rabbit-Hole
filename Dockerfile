@@ -1,6 +1,14 @@
 FROM python:3.12-slim AS builder
 WORKDIR /build
 ENV PIP_NO_CACHE_DIR=1
+
+# The slim base is rebuilt independently of this repository. Apply Debian's
+# available security updates so the image does not retain superseded OS
+# packages when it is scanned or published.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
@@ -9,7 +17,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TIKTOKEN_CACHE_DIR=/app/.cache/tiktoken
 
-RUN useradd --create-home --uid 10001 appuser
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 appuser
 WORKDIR /app
 
 COPY --from=builder /install /usr/local
